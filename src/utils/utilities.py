@@ -4,22 +4,24 @@ import omegaconf
 import os
 
 def get_data(path : str) -> pd.DataFrame:
-    return pd.read_csv(path)
+    return pd.read_csv(path, encoding="ISO-8859-1")
 
 def getArgs() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--args_path", type=str, default=None, help="Path to args file")
-    parser.add_argument("--data_path", type=str, default="data/twitter_human_bots_dataset.csv", help="Path to data CSV")
+    # humans_folder
+    parser.add_argument("--humans_folder", type=str, default="data/e13", help="Path to humans folder")
+    parser.add_argument("--bots_folder", type=str, default="data/twt", help="Path to bots folder")
 
     # check if we have a config file
     args = parser.parse_args()
     if args.args_path is not None:
         # load the config file
         args = omegaconf.OmegaConf.load(args.args_path)
-        # convert to argparse
         args = omegaconf.OmegaConf.to_container(args, resolve=True)
-        # convert to namespace
+        
+        # convert to args namespace
         args = argparse.Namespace(**args)
 
     return args

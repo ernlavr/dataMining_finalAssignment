@@ -1,1 +1,2 @@
-data_path : "data/twitter_human_bots_dataset.csv"
+bots_folder : "data/twt"
+humans_folder : "data/e13"

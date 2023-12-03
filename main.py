@@ -5,10 +5,7 @@ import src.ml.clustering as cl
 
 def main():
     args = utils.getArgs()
-    dataset = utils.get_data(args.data_path)
-    data_processor = dp.DataProcessor(dataset)
-
-    clustering = cl.Clustering(data_processor.data)
+    data_processor = dp.DataProcessor(args)
 
 if __name__ == '__main__':
     main()
