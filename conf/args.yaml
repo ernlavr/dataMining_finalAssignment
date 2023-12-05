@@ -1,2 +1,13 @@
 bots_folder : "data/twt"
 humans_folder : "data/e13"
+data_train : "data/processed/train.csv"
+data_test : "data/processed/test.csv"
+
+# Preprocessing
+preprocess : False
+
+# Dimensionality Reduction
+dimred: False
+
+# Clustering
+cluster : True

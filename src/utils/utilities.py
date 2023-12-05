@@ -10,9 +10,17 @@ def getArgs() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--args_path", type=str, default=None, help="Path to args file")
-    # humans_folder
+    # Data
     parser.add_argument("--humans_folder", type=str, default="data/e13", help="Path to humans folder")
     parser.add_argument("--bots_folder", type=str, default="data/twt", help="Path to bots folder")
+    parser.add_argument("--data_train", type=str, default="data/processed/train.csv", help="Path to data_train")
+    parser.add_argument("--data_test", type=str, default="data/processed/test.csv", help="Path to data_test")
+
+    # Preprocessing
+    parser.add_argument("--preprocess", type=bool, default=False, help="Preprocess data")
+
+    # Clustering
+    parser.add_argument("--cluster", type=bool, default=False, help="Cluster data")
 
     # check if we have a config file
     args = parser.parse_args()
@@ -36,25 +44,33 @@ def save_tmp_data(data : pd.DataFrame, name : str):
 def get_numeric_columns() -> list:
     """ Get the numeric columns of the dataset """
     numeric_columns = [
-        "favourites_count",
+        "statuses_count",
         "followers_count",
         "friends_count",
-        "statuses_count",
-        "average_tweets_per_day",
-        "account_age_days"
+        "favourites_count",
+        "listed_count",
+        "description_num_char",
+        "avg_retweets",
+        "avg_favorites",
+        "avg_length",
+        "median_day_of_tweeting", # -1 if no tweets
+        "median_time_of_tweeting", # -1 if no tweets
     ]
     return numeric_columns
 
 def get_categorical_columns() -> list:
     cat_columns = [
-        "default_profile",
-        "default_profile_image",
-        "geo_enabled",
-        "lang",
-        "verified",
-        "account_type",
-        "created_day_of_week",
-        "created_time_of_day"
+        "account_type", # 0, 1; is human or bot?
+        "url",  # 0, 1; is URL present?
+        "location", # 0, 1; is location present?
+        "default_profile", # 0, 1; is default profile present?
+        "default_profile_image", # 0, 1; is default profile image present?
+        "geo_enabled", # 0, 1; is geo enabled?
+        "profile_banner_url", # 0, 1; is profile banner URL present?
+        "profile_use_background_image", # 0, 1; is profile background image present?
+        "description_contins_link", # 0, 1; does description contain a link?
+        "created_time_of_day",
+        "created_day_of_week"
     ]
     return cat_columns
 
