@@ -166,3 +166,5 @@ cython_debug/
 
 # data folder (see README.md on how to access the data files)
 data/
+
+output/
