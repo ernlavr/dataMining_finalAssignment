@@ -153,29 +153,29 @@ class DataProcessor:
         # add day of week as 1 to 7 as a feature
         df = self.add_day_of_week(df)
 
-        # is "url" present?
-        df["url"] = df["url"].notnull().astype(int)
+        # one-hot encode "url"
+        df = self.one_hot_column(df, "url")
 
         # is "location" present?
-        df["location"] = df["location"].notnull().astype(int)
+        df = self.one_hot_column(df, "location")
 
         # is "default_profile" present? Add as 0 or 1
-        df["default_profile"] = df["default_profile"].notnull().astype(int)
+        df = self.one_hot_column(df, "default_profile")
 
         # is "default_profile_image" present?
-        df["default_profile_image"] = df["default_profile_image"].notnull().astype(int)
+        df = self.one_hot_column(df, "default_profile_image")
 
         # is "geo_enabled" present?
-        df["geo_enabled"] = df["geo_enabled"].notnull().astype(int)
+        df = self.one_hot_column(df, "geo_enabled")
 
         # drop "profile_image_url"
         df = df.drop(columns=["profile_image_url"])
 
         # is "profile_banner_url" not "NULL"?
-        df["profile_banner_url"] = df["profile_banner_url"].notnull().astype(int)
+        df = self.one_hot_column(df, "profile_banner_url")
 
         # is "profile_use_background_image" present?
-        df["profile_use_background_image"] = df["profile_use_background_image"].notnull().astype(int)
+        df = self.one_hot_column(df, "profile_use_background_image")
 
         # drop columns because they are not useful
         columns_to_drop = [
@@ -203,7 +203,9 @@ class DataProcessor:
         df["description_num_char"] = df["description"].str.len()
 
         # "description" contains http:// or https:// ?
-        df["description_contins_link"] = df["description"].str.contains("http://|https://").astype(int)
+        df["description"] = df["description"].str.contains("http://|https://")
+        df_encoded = pd.get_dummies(df["description"], prefix="description_contains")
+        df = pd.concat([df, df_encoded], axis=1)
 
         df = self.parse_tweets(df, datapath)
 
@@ -215,6 +217,16 @@ class DataProcessor:
         utils.save_tmp_data(df, f"process_dataset_{data_name}.csv")
 
         return df
+
+    def one_hot_column(self, data : pd.DataFrame, column : str) -> pd.DataFrame:
+        """ One-hot encode a column """
+        # one-hot encode "url"
+        df_encoded = pd.get_dummies(data[column].notnull().astype(int), prefix=f'{column}_present')
+        data = pd.concat([data, df_encoded], axis=1)
+        # remove the original column
+        data = data.drop(columns=[column])
+
+        return data
 
     def parse_tweets(self, users_df, datapath):
         """ For both users.csv files, map the user IDs to the tweets.csv 

@@ -19,30 +19,30 @@ class Clustering():
         self.save_dir = os.path.join(os.getcwd(), "output", "images", "Clustering")
         self.train = pd.read_csv(args.data_train)
         self.test = pd.read_csv(args.data_test)
-        #self.perform_kmeans()
-        self.perform_dbscan()
+        
+        self.reduced_train = self.pcaDimensionalityReduction(self.train, 3)
+        #self.perform_kmeans(self.reduced_train)
+        self.perform_dbscan(self.reduced_train)
 
-    def perform_kmeans(self):
+    def perform_kmeans(self, dataset):
+        # remove PC-2
+        dataset = dataset.drop(columns=["Dim_1"])
+
         k = self.compute_elbow()
 
         # Create a KMeans instance with k clusters: model
         model = KMeans(n_clusters=k)
 
         # Fit model to samples
-        model.fit(self.train)
+        model.fit(dataset)
 
         # Determine the cluster labels of new_points: labels
-        labels = model.predict(self.train)
+        labels = model.predict(dataset)
 
         # Add the cluster labels to your DataFrame
         self.train['Cluster'] = labels
 
-        # Get top 2 principal components
-        pca = PCA(n_components=2)
-        principal_components = pca.fit_transform(self.train)
-
-        # Visualize the clusters
-        plt.scatter(principal_components[:, 0], principal_components[:, 1], c=labels, cmap='viridis', marker='o', s=50, alpha=0.8)
+        self.visualize(labels, dataset)
 
         # Save
         kmeans_output = os.path.join(self.save_dir, "kmeans", "kmeans.png")
@@ -55,11 +55,21 @@ class Clustering():
     def evaluate_clustering(self, dataset):
         """ Evaluate the clustering using mutual information score """
 
+        # One-hot categorical values
+        # Standard sacler for numerical onbes
+        # Dimensionality reduction before cluster
+
         # get the labels
         labels = dataset["account_type"]
 
         # get the cluster labels
         cluster_labels = dataset["Cluster"]
+
+        # evaluate pairwise match
+        pairwise = labels == cluster_labels
+        acc = pairwise.sum() / len(pairwise)
+        print(f"Accuracy: {acc}")
+        
 
         # calculate the mutual information score
         mutual_info = mutual_info_score(labels, cluster_labels)
@@ -68,25 +78,22 @@ class Clustering():
         print(f"Mutual information score: {mutual_info}")
 
 
-    def perform_dbscan(self):
+    def perform_dbscan(self, dataset):
         # TODO: balance human/bot labels
-        numerical_columns = utils.get_numeric_columns()
-        dataset = self.train[numerical_columns]
+        # numerical_columns = utils.get_numeric_columns()
+        # dataset = dataset[numerical_columns]
 
         # Apply DBSCAN
+
         self.determine_dbscan_eps(dataset)
         ms = self.get_optimal_minsamples_dbscan(dataset)
-        dbscan = DBSCAN(eps=0.25, min_samples=ms)
+        dbscan = DBSCAN(eps=0.2, min_samples=ms)
         clusters = dbscan.fit_predict(dataset)
 
         # Add the cluster labels to your DataFrame
         dataset['Cluster'] = clusters
 
         self.visualize(clusters, dataset)
-
-        # change clusters -1 to 1
-        clusters[clusters == 0] = 1
-        clusters[clusters == -1] = 0
 
         # plot confusion matrix between clusters and labels
         sns.heatmap(pd.crosstab(clusters, self.train['account_type']), annot=True, fmt='d')
@@ -161,22 +168,52 @@ class Clustering():
         As per https://link.springer.com/article/10.1023/A:1009745219419 
         """
         return dataset.shape[1] * 2
+    
+    def pcaDimensionalityReduction(self, dataset, components):
+        """ Reduce the dimensionality of the dataset using PCA """
+        # remove "account_type" column
+        #dataset = dataset.drop(columns=["account_type"])
+        pca = PCA(n_components=components)
+        pca_components = pca.fit_transform(dataset)
+        
+        cols = [f'Dim_{i}' for i in range(components)]
+        output = pd.DataFrame(data=pca_components, columns=cols)
+
+        # Normalize all dimension to be between -1 and 1
+        for col in output.columns:
+            output[col] = (output[col] - output[col].min()) / (output[col].max() - output[col].min())
+            output[col] = output[col] * 2 - 1
+
+        return output
+
+
+    def tsneDimensionalityReduction(self, dataset, components):
+        """ Reduce the dimensionality of the dataset using t-SNE """
+        # remove "account_type" column
+        #dataset = dataset.drop(columns=["account_type"])
+        tsne = TSNE(n_components=components)
+        tsne_components = tsne.fit_transform(dataset)
+        
+        cols = [f'Dim_{i}' for i in range(components)]
+        output = pd.DataFrame(data=tsne_components, columns=cols)
+
+        return output
 
 
 
     def visualize(self, clusters, dataset):
         # extract t-SNE 1 and 2
-        tsne = TSNE(n_components=3)
-        tsne_components = tsne.fit_transform(dataset)
+        # tsne = TSNE(n_components=3)
+        # tsne_components = tsne.fit_transform(dataset)
 
         # Visualize the clusters
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
-        ax.scatter(tsne_components[:, 0], tsne_components[:, 1], tsne_components[:, 2], c=clusters, cmap='viridis', marker='o', s=50, alpha=0.8)
+        ax.scatter(dataset['Dim_0'].values, dataset['Dim_1'].values, dataset['Dim_2'].values, c=clusters, cmap='viridis', marker='o', s=50, alpha=0.8)
         ax.set_title('DBSCAN Clustering')
-        ax.set_xlabel('t-SNE 1')
-        ax.set_ylabel('t-SNE 2')
-        ax.set_zlabel('t-SNE 3')
+        ax.set_xlabel('Dim 1')
+        ax.set_ylabel('Dim 2')
+        ax.set_zlabel('Dim 3')
         plt.show()
 
         # save to output/images/Clustering/DBSCAN.png
