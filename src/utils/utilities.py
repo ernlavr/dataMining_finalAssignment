@@ -4,7 +4,9 @@ import omegaconf
 import os
 
 def get_data(path : str) -> pd.DataFrame:
-    return pd.read_csv(path, encoding="ISO-8859-1")
+    output = pd.read_csv(path, encoding="ISO-8859-1")
+    print(f"Loading data from {path}; Len: {output.shape[0]}")
+    return output
 
 def getArgs() -> argparse.Namespace:
     parser = argparse.ArgumentParser()

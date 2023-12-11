@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-from sklearn.cluster import DBSCAN, KMeans
+from sklearn.cluster import DBSCAN, KMeans, OPTICS, AgglomerativeClustering
 from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
@@ -19,45 +19,34 @@ class Clustering():
         self.save_dir = os.path.join(os.getcwd(), "output", "images", "Clustering")
         self.train = pd.read_csv(args.data_train)
         self.test = pd.read_csv(args.data_test)
+
+        self.train = pd.concat([self.train, self.test])
         
-        self.reduced_train = self.pcaDimensionalityReduction(self.train, 3)
-        #self.perform_kmeans(self.reduced_train)
-        self.perform_dbscan(self.reduced_train)
+        self.reduced_train = self.pcaDimensionalityReduction(self.train, 2)
+        self.perform_kmeans(self.reduced_train)
+        #self.perform_dbscan(self.reduced_train)
 
     def perform_kmeans(self, dataset):
-        # remove PC-2
-        dataset = dataset.drop(columns=["Dim_1"])
-
-        k = self.compute_elbow()
+        self.compute_elbow()
 
         # Create a KMeans instance with k clusters: model
-        model = KMeans(n_clusters=k)
+        model = KMeans(n_clusters=3)
 
         # Fit model to samples
         model.fit(dataset)
 
         # Determine the cluster labels of new_points: labels
         labels = model.predict(dataset)
-
-        # Add the cluster labels to your DataFrame
         self.train['Cluster'] = labels
 
-        self.visualize(labels, dataset)
-
-        # Save
-        kmeans_output = os.path.join(self.save_dir, "kmeans", "kmeans.png")
-        os.makedirs(os.path.dirname(kmeans_output), exist_ok=True)
-        plt.savefig(kmeans_output)
-        plt.clf()
-        plt.close()
+        # Add the cluster labels to your DataFrame
+        self.visualize(labels, dataset, name="kmeans")
+        self.evaluate_clustering(self.train)
+        self.plot_confusion(labels, self.train, "kmeans")
 
 
     def evaluate_clustering(self, dataset):
         """ Evaluate the clustering using mutual information score """
-
-        # One-hot categorical values
-        # Standard sacler for numerical onbes
-        # Dimensionality reduction before cluster
 
         # get the labels
         labels = dataset["account_type"]
@@ -77,6 +66,14 @@ class Clustering():
         # log to wandb
         print(f"Mutual information score: {mutual_info}")
 
+    def collapse_to_two_clusters(self, labels):
+        num_clusters = len(set(labels))
+
+        middle = (num_clusters - 1) // 2
+        mapping = {label: 0 if label < middle else 1 for label in set(labels)}
+
+        collapsed_labels = [mapping[label] for label in labels]
+        return collapsed_labels
 
     def perform_dbscan(self, dataset):
         # TODO: balance human/bot labels
@@ -84,16 +81,14 @@ class Clustering():
         # dataset = dataset[numerical_columns]
 
         # Apply DBSCAN
-
+        # remove 'account_type'
         self.determine_dbscan_eps(dataset)
         ms = self.get_optimal_minsamples_dbscan(dataset)
-        dbscan = DBSCAN(eps=0.2, min_samples=ms)
+        dbscan = AgglomerativeClustering(n_clusters=3)
         clusters = dbscan.fit_predict(dataset)
 
-        # Add the cluster labels to your DataFrame
         dataset['Cluster'] = clusters
-
-        self.visualize(clusters, dataset)
+        self.visualize(clusters, dataset, 'DBSCAN')
 
         # plot confusion matrix between clusters and labels
         sns.heatmap(pd.crosstab(clusters, self.train['account_type']), annot=True, fmt='d')
@@ -102,12 +97,25 @@ class Clustering():
         plt.title('Confusion Matrix')
         plt.show()
         plt.savefig(os.path.join(self.save_dir, "DBSCAN", "confusion_matrix.png"))
+        plt.clf()
+        plt.close()
 
         # add clusters into self.train
         self.train['Cluster'] = clusters
         self.evaluate_clustering(self.train)
 
         return dataset
+    
+    def plot_confusion(self, clusters, dataset, name):
+        # plot confusion matrix between clusters and labels
+        sns.heatmap(pd.crosstab(clusters, dataset['account_type']), annot=True, fmt='d')
+        plt.xlabel('Bot/Human')
+        plt.ylabel('Cluster')
+        plt.title('Confusion Matrix')
+        plt.show()
+        plt.savefig(os.path.join(self.save_dir, name, f"{name}_conf_matrix.png"))
+        plt.clf()
+        plt.close()
 
     def determine_dbscan_eps(self, dataset):
         """ Use K-Nearest Neighbors to determine the optimal eps value for DBSCAN
@@ -137,7 +145,9 @@ class Clustering():
         # save
         output_dir = os.path.join(self.save_dir, "DBSCAN")
         os.makedirs(output_dir, exist_ok=True)
+        plt.show()
         plt.savefig(os.path.join(output_dir, "distances.png"))
+        plt.clf()
 
 
         return best_eps
@@ -172,54 +182,47 @@ class Clustering():
     def pcaDimensionalityReduction(self, dataset, components):
         """ Reduce the dimensionality of the dataset using PCA """
         # remove "account_type" column
-        #dataset = dataset.drop(columns=["account_type"])
+        dataset = dataset.drop(columns=["account_type"])
+
         pca = PCA(n_components=components)
         pca_components = pca.fit_transform(dataset)
         
         cols = [f'Dim_{i}' for i in range(components)]
         output = pd.DataFrame(data=pca_components, columns=cols)
 
-        # Normalize all dimension to be between -1 and 1
-        for col in output.columns:
-            output[col] = (output[col] - output[col].min()) / (output[col].max() - output[col].min())
-            output[col] = output[col] * 2 - 1
+        # Plot the principal components
+        plt.scatter(output['Dim_0'].values, output['Dim_1'].values, alpha=0.25)
+        plt.xlabel('PC_1')
+        plt.ylabel('PC_2')
+        plt.title('Data after PCA Transformation')
 
-        return output
-
-
-    def tsneDimensionalityReduction(self, dataset, components):
-        """ Reduce the dimensionality of the dataset using t-SNE """
-        # remove "account_type" column
-        #dataset = dataset.drop(columns=["account_type"])
-        tsne = TSNE(n_components=components)
-        tsne_components = tsne.fit_transform(dataset)
         
-        cols = [f'Dim_{i}' for i in range(components)]
-        output = pd.DataFrame(data=tsne_components, columns=cols)
+        output_dir = os.path.join(self.save_dir, "PCA")
+        os.makedirs(output_dir, exist_ok=True)
+        plt.savefig(os.path.join(output_dir, "PCA.png"))
+        plt.close()
 
         return output
 
 
-
-    def visualize(self, clusters, dataset):
-        # extract t-SNE 1 and 2
-        # tsne = TSNE(n_components=3)
-        # tsne_components = tsne.fit_transform(dataset)
-
+    def visualize(self, clusters, dataset, name, eps=None):
         # Visualize the clusters
         fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-        ax.scatter(dataset['Dim_0'].values, dataset['Dim_1'].values, dataset['Dim_2'].values, c=clusters, cmap='viridis', marker='o', s=50, alpha=0.8)
-        ax.set_title('DBSCAN Clustering')
-        ax.set_xlabel('Dim 1')
-        ax.set_ylabel('Dim 2')
-        ax.set_zlabel('Dim 3')
+        ax = fig.add_subplot()
+        scatter = ax.scatter(dataset['Dim_0'].values, dataset['Dim_1'].values, c=clusters, cmap='viridis', marker='o', s=50, alpha=0.8)
+        legend = ax.legend(*scatter.legend_elements(), title='Clusters')
+        ax.add_artist(legend)
+        ax.set_title(f'DBSCAN Clustering; {eps}')
+        ax.set_xlabel('PC_1')
+        ax.set_ylabel('PC_2')
         plt.show()
 
         # save to output/images/Clustering/DBSCAN.png
-        output_dir = os.path.join(self.save_dir, "DBSCAN")
+        output_dir = os.path.join(self.save_dir, name)
         os.makedirs(output_dir, exist_ok=True)
-        plt.savefig(os.path.join(output_dir, "DBSCAN.png"))
+        plt.savefig(os.path.join(output_dir, f"{name}.png"))
+        plt.clf()
+        plt.close()
 
         # With PCA plotting: X-Y axis is the top two principal components
 
@@ -264,7 +267,7 @@ class Clustering():
         # Plot ks vs inertias
         plt.plot(range(1, 10), inertias, '-o')
         plt.xlabel('number of clusters, k')
-        plt.ylabel('inertia')
+        plt.ylabel('Inter-cluster variance')
         plt.xticks(range(1, 10))
 
         # Save

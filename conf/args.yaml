@@ -4,10 +4,7 @@ data_train : "data/processed/train.csv"
 data_test : "data/processed/test.csv"
 
 # Preprocessing
-preprocess : False
-
-# Dimensionality Reduction
-dimred: False
+preprocess : True
 
 # Clustering
 cluster : True

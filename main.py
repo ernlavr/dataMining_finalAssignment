@@ -9,9 +9,6 @@ def main():
     if args.preprocess:
         data_processor = dp.DataProcessor(args)
 
-    if args.dimred:
-        dimred = dr.DimRed(args)
-
     if args.cluster:
         clustering = cl.Clustering(args)
 

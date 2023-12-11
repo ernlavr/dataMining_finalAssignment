@@ -44,11 +44,15 @@ class DataProcessor:
         # save data
         save_dir = os.path.join(os.getcwd(), "data", "processed")
         os.makedirs(save_dir, exist_ok=True)
-        train.to_csv(os.path.join(save_dir, "train.csv"))
-        test.to_csv(os.path.join(save_dir, "test.csv"))
-        self.data_merged.to_csv(os.path.join(save_dir, "data_parsed.csv")) # unsplit for debugging
+        train.to_csv(os.path.join(save_dir, "train.csv"), index=False)
+        test.to_csv(os.path.join(save_dir, "test.csv"), index=False)
+        self.check_duplicates(self.data_merged)
+        self.data_merged.to_csv(os.path.join(save_dir, "data_parsed.csv"), index=False) # unsplit for debugging
 
 
+    def check_duplicates(self, df : pd.DataFrame):
+        """ Check if there are any duplicates """
+        print(df.duplicated().sum())
 
     def get_train_test(self):
         """ Balance the dataset by returning a train and test set 
@@ -106,6 +110,9 @@ class DataProcessor:
         os.makedirs(output_dir, exist_ok=True)
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, f"{filename}.png"))
+        plt.clf()
+        plt.close()
+
 
     def remove_outliers_by_numerical_cols(self, data : pd.DataFrame) -> pd.DataFrame:
         """ Remove outliers by columns which are floats """
@@ -130,6 +137,10 @@ class DataProcessor:
     def process_merged(self, data : pd.DataFrame) -> pd.DataFrame:
         # create lang categories
         data["lang_cat"] = data["lang"].astype("category").cat.codes
+        # one-hot
+        encoded = pd.get_dummies(data["lang_cat"], prefix="lang")
+        data = pd.concat([data, encoded], axis=1)
+
 
         # Remove ID
         data = data.drop(columns=["id"])
@@ -147,12 +158,6 @@ class DataProcessor:
         # convert date to datetime64
         df = self.convert_date_to_datetime64(df)
 
-        # add time of day as 1 to 24 as a feature
-        df = self.add_time_of_day(df)
-
-        # add day of week as 1 to 7 as a feature
-        df = self.add_day_of_week(df)
-
         # one-hot encode "url"
         df = self.one_hot_column(df, "url")
 
@@ -161,9 +166,6 @@ class DataProcessor:
 
         # is "default_profile" present? Add as 0 or 1
         df = self.one_hot_column(df, "default_profile")
-
-        # is "default_profile_image" present?
-        df = self.one_hot_column(df, "default_profile_image")
 
         # is "geo_enabled" present?
         df = self.one_hot_column(df, "geo_enabled")
@@ -179,6 +181,7 @@ class DataProcessor:
 
         # drop columns because they are not useful
         columns_to_drop = [
+            # Text and styling
             "profile_background_image_url_https",
             "profile_text_color",
             "profile_image_url_https",
@@ -189,8 +192,14 @@ class DataProcessor:
             "profile_background_color",
             "profile_link_color",
             "utc_offset",
+            
+            # Empty columns
             "protected",
-            "verified"
+            "verified",
+
+            # Low correlation
+            "created_at",
+            "default_profile_image"
         ]
 
         # drop all columns at once
@@ -204,13 +213,11 @@ class DataProcessor:
 
         # "description" contains http:// or https:// ?
         df["description"] = df["description"].str.contains("http://|https://")
-        df_encoded = pd.get_dummies(df["description"], prefix="description_contains")
+        df_encoded = pd.get_dummies(df["description"], prefix="description_contains_link")
         df = pd.concat([df, df_encoded], axis=1)
 
         df = self.parse_tweets(df, datapath)
 
-        # drop "created_at" because we have "account_age_days"
-        df = df.drop(columns=["created_at"])
 
         # save tmp data
         data_name = "human" if human == 1 else "bot"
@@ -336,7 +343,7 @@ class DataProcessor:
     def add_day_of_week(self, data : pd.DataFrame, save=True) -> pd.DataFrame:
         """ Add day of week as 1 to 7 as a feature """
         data['created_day_of_week'] = data['created_at'].dt.dayofweek + 1
-        
+
         if save:
             utils.save_tmp_data(data, "add_day_of_week.csv")
         return data
