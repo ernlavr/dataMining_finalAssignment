@@ -14,10 +14,13 @@ from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 
+import src.ml.sentiment_anal as sa
+
 class DataProcessor:
     def __init__(self, args):
         self.user_file = "users.csv"
         self.tweet_file = "tweets.csv"
+        self.sentiment_analyser = sa.SentimentAnalysis()
 
         # Set features
         self.data_human = self.process_dataset(args.humans_folder, 1)
@@ -37,7 +40,8 @@ class DataProcessor:
         self.data_merged = self.apply_min_max_scaler(self.data_merged)
 
         # Plot correlation again
-        self.visualize(self.data_merged, "feature_correlation_no_outliers")
+        #self.visualize(self.data_merged, "feature_correlation_no_outliers")
+        
 
         train, test = self.get_train_test()
 
@@ -278,7 +282,7 @@ class DataProcessor:
         tweets_path = os.path.join(datapath, self.tweet_file)
         tweets_df = utils.get_data(tweets_path)
 
-        def parse_by_user_id(self, user_id, tweets_df):
+        def parse_by_user_id(self, user_id, tweets_df, sentiment_analyser):
             """ Extract all tweets by user_id 
                 # TODO: outline in the report that means are sensetive to outliers
                 e.g. user ID 16119337
@@ -314,15 +318,17 @@ class DataProcessor:
             median_time_of_day = tweets["created_time_of_day"].median()
             median_time_of_day = median_time_of_day if pd.notna(median_time_of_day) else -1
 
-            median_sentiment = self.extract_median_tweet_sentiment(tweets["text"])
+            sentiments = sentiment_analyser.run_inference(tweets['text'])
+            median_sentiment = np.median(sentiments)
 
-            return avg_retweets, avg_favorites, avg_length, median_day_of_week, median_time_of_day
+            return avg_retweets, avg_favorites, avg_length, median_day_of_week, median_time_of_day, median_sentiment
 
         users_df[['avg_retweets', 
             'avg_favorites', 
             'avg_length',
             'median_day_of_tweeting',
-            'median_time_of_tweeting']] = users_df['id'].apply(lambda x: pd.Series(parse_by_user_id(self, x, tweets_df)))
+            'median_time_of_tweeting',
+            'median_sentiment']] = users_df['id'].apply(lambda x: pd.Series(parse_by_user_id(self, x, tweets_df, self.sentiment_analyser)))
 
         # save df
         utils.save_tmp_data(users_df, "parse_tweets.csv")

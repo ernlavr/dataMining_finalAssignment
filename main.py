@@ -8,8 +8,6 @@ import src.ml.sentiment_anal as sa
 def main():
     args = utils.getArgs()
 
-    sa.SentimentAnalysis()
-
     if args.preprocess:
         data_processor = dp.DataProcessor(args)
 
