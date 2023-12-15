@@ -6,7 +6,9 @@ import locale
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 import numpy as np
+import requests
 
+from tqdm import tqdm
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -100,7 +102,7 @@ class DataProcessor:
     def visualize(self, data : pd.DataFrame, filename):
         # visualize the correlation
         corr = data.corr()
-        f, ax = plt.subplots(figsize=(14, 10))
+        f, ax = plt.subplots(figsize=(20, 16))
         hm = sns.heatmap(round(corr,2), annot=True, ax=ax, cmap="coolwarm",fmt='.2f',
                  linewidths=.05)
         t= f.suptitle('Twitter Bot Account Feature Correlation Heatmap', fontsize=14)
@@ -144,6 +146,7 @@ class DataProcessor:
 
         # Remove ID
         data = data.drop(columns=["id"])
+        data = data.drop(columns=["lang_cat"])
         
         # save
         utils.save_tmp_data(data, "process_merged.csv")
@@ -235,6 +238,30 @@ class DataProcessor:
 
         return data
 
+    def extract_median_tweet_sentiment(self, tweets):
+        # Sentiment analysis
+        model = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+        hf_token = "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" 
+        API_URL = "https://api-inference.huggingface.co/models/" + model
+        headers = {"Authorization": "Bearer %s" % (hf_token)}
+        tweets_analysis = []
+
+        def analysis(tweet):
+            payload = dict(inputs=tweet, options=dict(wait_for_model=True))
+            response = requests.post(API_URL, headers=headers, json=payload)
+            return response.json()
+
+        for tweet in tqdm(tweets, "Tweet sentiments"):
+            try:
+                sentiment_result = analysis(tweet)[0]
+                top_sentiment = max(sentiment_result, key=lambda x: x['score']) # Get the sentiment with the higher score
+                tweets_analysis.append(top_sentiment['label'])
+        
+            except Exception as e:
+                print(e)
+
+        return np.median(tweets_analysis)
+
     def parse_tweets(self, users_df, datapath):
         """ For both users.csv files, map the user IDs to the tweets.csv 
         and extract useful information such as
@@ -288,6 +315,8 @@ class DataProcessor:
             # extract median time of tweeting
             median_time_of_day = tweets["created_time_of_day"].median()
             median_time_of_day = median_time_of_day if pd.notna(median_time_of_day) else -1
+
+            median_sentiment = self.extract_median_tweet_sentiment(tweets["text"])
 
             return avg_retweets, avg_favorites, avg_length, median_day_of_week, median_time_of_day
 

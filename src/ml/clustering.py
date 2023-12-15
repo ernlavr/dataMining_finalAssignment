@@ -10,7 +10,7 @@ from sklearn.cluster import DBSCAN, KMeans, OPTICS, AgglomerativeClustering
 from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from sklearn.metrics import mutual_info_score
+from sklearn.metrics import mutual_info_score, normalized_mutual_info_score, homogeneity_score
 
 
 
@@ -62,8 +62,6 @@ class Clustering():
 
         # calculate the mutual information score
         mutual_info = mutual_info_score(labels, cluster_labels)
-
-        # log to wandb
         print(f"Mutual information score: {mutual_info}")
 
     def collapse_to_two_clusters(self, labels):
