@@ -1,9 +1,7 @@
 import os
 import pandas as pd
 import src.utils.utilities as utils
-import seaborn as sns
 import locale
-import matplotlib.pyplot as plt
 import scipy.stats as stats
 import numpy as np
 import requests

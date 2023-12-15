@@ -1,8 +1,6 @@
 import pandas as pd
 import wandb
 import src.utils.utilities as utils
-import seaborn as sns
-import matplotlib.pyplot as plt
 import os
 import numpy as np
 
