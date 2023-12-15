@@ -17,6 +17,7 @@ def getArgs() -> argparse.Namespace:
     parser.add_argument("--bots_folder", type=str, default="data/twt", help="Path to bots folder")
     parser.add_argument("--data_train", type=str, default="data/processed/train.csv", help="Path to data_train")
     parser.add_argument("--data_test", type=str, default="data/processed/test.csv", help="Path to data_test")
+    parser.add_argument("--data_parsed", type=str, default="data/processed/data_parsed.csv", help="Path to complete dataset")
 
     # Preprocessing
     parser.add_argument("--preprocess", type=bool, default=False, help="Preprocess data")
@@ -55,8 +56,8 @@ def get_numeric_columns() -> list:
         "avg_retweets",
         "avg_favorites",
         "avg_length",
-        "median_day_of_tweeting", # -1 if no tweets
-        "median_time_of_tweeting", # -1 if no tweets
+        # "median_day_of_tweeting", # -1 if no tweets
+        # "median_time_of_tweeting", # -1 if no tweets
     ]
     return numeric_columns
 

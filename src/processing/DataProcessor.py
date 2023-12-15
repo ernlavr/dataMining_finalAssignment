@@ -23,21 +23,21 @@ class DataProcessor:
         self.data_human = self.process_dataset(args.humans_folder, 1)
         self.data_bot = self.process_dataset(args.bots_folder, 0)
 
+        self.data_human = self.remove_outliers_by_numerical_cols(self.data_human)
+        self.data_bot = self.remove_outliers_by_numerical_cols(self.data_bot)
+
         # Assert identical lengths and merge
         assert self.data_human.columns.equals(self.data_bot.columns)
         self.data_merged = pd.concat([self.data_human, self.data_bot])
         self.data_merged = self.process_merged(self.data_merged)
 
         # Remove non-numeric columns and visualize
-        numeric_df = self.data_merged.select_dtypes(include='number')
-        self.visualize(numeric_df, "feature_correlation")
+        self.visualize(self.data_merged, "feature_correlation")
         
         # Remove outliers and apply min-max scaler
-        self.data_merged = self.remove_outliers_by_numerical_cols(numeric_df)
+        # self.data_merged = self.remove_outliers_by_numerical_cols(numeric_df)
         self.data_merged = self.apply_min_max_scaler(self.data_merged)
-
-        # Plot correlation again
-        self.visualize(self.data_merged, "feature_correlation_no_outliers")
+        self.make_pair_plot()
 
         train, test = self.get_train_test()
 
@@ -49,6 +49,20 @@ class DataProcessor:
         self.check_duplicates(self.data_merged)
         self.data_merged.to_csv(os.path.join(save_dir, "data_parsed.csv"), index=False) # unsplit for debugging
 
+
+    def make_pair_plot(self):
+        """ Make a pair plot """
+        # use only numeric columns
+        output_dir = os.path.join(os.getcwd(), "output", "images", __class__.__name__)
+
+        numeric_columns = utils.get_numeric_columns()
+        numeric_columns.append("account_type")
+        numeric_df = self.data_merged[numeric_columns]
+        plt.figure(figsize=(20,20))
+        sns.pairplot(numeric_df, hue="account_type")
+        plt.savefig(os.path.join(output_dir, "pairplot.png"))
+        plt.clf()
+        plt.close()
 
     def check_duplicates(self, df : pd.DataFrame):
         """ Check if there are any duplicates """
@@ -135,15 +149,22 @@ class DataProcessor:
         return data
 
     def process_merged(self, data : pd.DataFrame) -> pd.DataFrame:
-        # create lang categories
-        data["lang_cat"] = data["lang"].astype("category").cat.codes
-        # one-hot
-        encoded = pd.get_dummies(data["lang_cat"], prefix="lang")
-        data = pd.concat([data, encoded], axis=1)
+        # # create lang categories
+        # data["lang_cat"] = data["lang"].astype("category").cat.codes
+        # # one-hot
+        # encoded = pd.get_dummies(data["lang_cat"], prefix="lang")
+        # data = pd.concat([data, encoded], axis=1)
 
 
         # Remove ID
         data = data.drop(columns=["id"])
+        data = data.drop(columns=['lang'])
+        data = data.drop(columns=['name'])
+        data = data.drop(columns=['screen_name'])
+        data = data.drop(columns=['time_zone'])
+        data = data.drop(columns=['updated'])
+        data = data.drop(columns=['dataset'])
+
         
         # save
         utils.save_tmp_data(data, "process_merged.csv")
@@ -289,13 +310,11 @@ class DataProcessor:
             median_time_of_day = tweets["created_time_of_day"].median()
             median_time_of_day = median_time_of_day if pd.notna(median_time_of_day) else -1
 
-            return avg_retweets, avg_favorites, avg_length, median_day_of_week, median_time_of_day
+            return avg_retweets, avg_favorites, avg_length #, median_day_of_week, median_time_of_day
 
         users_df[['avg_retweets', 
             'avg_favorites', 
-            'avg_length',
-            'median_day_of_tweeting',
-            'median_time_of_tweeting']] = users_df['id'].apply(lambda x: pd.Series(parse_by_user_id(self, x, tweets_df)))
+            'avg_length']] = users_df['id'].apply(lambda x: pd.Series(parse_by_user_id(self, x, tweets_df)))
 
         # save df
         utils.save_tmp_data(users_df, "parse_tweets.csv")

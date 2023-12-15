@@ -8,9 +8,9 @@ import numpy as np
 
 from sklearn.cluster import DBSCAN, KMeans, OPTICS, AgglomerativeClustering
 from sklearn.neighbors import NearestNeighbors
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, FastICA
 from sklearn.manifold import TSNE
-from sklearn.metrics import mutual_info_score
+import sklearn.metrics as metrics
 
 
 
@@ -18,19 +18,18 @@ class Clustering():
     def __init__(self, args):
         self.save_dir = os.path.join(os.getcwd(), "output", "images", "Clustering")
         self.train = pd.read_csv(args.data_train)
-        self.test = pd.read_csv(args.data_test)
 
-        self.train = pd.concat([self.train, self.test])
+        # self.reduced_train = self.tsne_dimensionality_reduction(self.train, 3)
+        self.reduced_train = self.pcaDimensionalityReduction(self.train, 3)
         
-        self.reduced_train = self.pcaDimensionalityReduction(self.train, 2)
         self.perform_kmeans(self.reduced_train)
-        #self.perform_dbscan(self.reduced_train)
+        # self.perform_dbscan(self.reduced_train)
 
     def perform_kmeans(self, dataset):
-        self.compute_elbow()
+        # self.compute_elbow()
 
         # Create a KMeans instance with k clusters: model
-        model = KMeans(n_clusters=3)
+        model = KMeans(n_clusters=14, random_state=1)
 
         # Fit model to samples
         model.fit(dataset)
@@ -47,24 +46,28 @@ class Clustering():
 
     def evaluate_clustering(self, dataset):
         """ Evaluate the clustering using mutual information score """
-
         # get the labels
         labels = dataset["account_type"]
 
         # get the cluster labels
         cluster_labels = dataset["Cluster"]
-
-        # evaluate pairwise match
-        pairwise = labels == cluster_labels
-        acc = pairwise.sum() / len(pairwise)
-        print(f"Accuracy: {acc}")
         
 
         # calculate the mutual information score
-        mutual_info = mutual_info_score(labels, cluster_labels)
+        mutual_info = metrics.adjusted_mutual_info_score(labels, cluster_labels)
+        adjusted_rand = metrics.adjusted_rand_score(labels, cluster_labels)
+        homogeneity_score = metrics.homogeneity_score(labels, cluster_labels)
+        completeness_score = metrics.completeness_score(labels, cluster_labels)
+        silhouette_score = metrics.silhouette_score(dataset, dataset["Cluster"])
+        pair_confusion_matrix = metrics.cluster.pair_confusion_matrix(labels, cluster_labels)
 
         # log to wandb
         print(f"Mutual information score: {mutual_info}")
+        print(f"Adjusted rand score: {adjusted_rand}")
+        print(f"Homogeneity score: {homogeneity_score}")
+        print(f"Completeness score: {completeness_score}")
+        print(f"Silhouette score: {silhouette_score}")
+
 
     def collapse_to_two_clusters(self, labels):
         num_clusters = len(set(labels))
@@ -84,7 +87,7 @@ class Clustering():
         # remove 'account_type'
         self.determine_dbscan_eps(dataset)
         ms = self.get_optimal_minsamples_dbscan(dataset)
-        dbscan = AgglomerativeClustering(n_clusters=3)
+        dbscan = DBSCAN(eps=0.5, min_samples=ms)
         clusters = dbscan.fit_predict(dataset)
 
         dataset['Cluster'] = clusters
@@ -103,6 +106,8 @@ class Clustering():
         # add clusters into self.train
         self.train['Cluster'] = clusters
         self.evaluate_clustering(self.train)
+
+        self.pcaDimensionalityReduction(dataset, 3)
 
         return dataset
     
@@ -148,6 +153,7 @@ class Clustering():
         plt.show()
         plt.savefig(os.path.join(output_dir, "distances.png"))
         plt.clf()
+        plt.close()
 
 
         return best_eps
@@ -179,31 +185,79 @@ class Clustering():
         """
         return dataset.shape[1] * 2
     
+    def make_pair_plot(self, pca_results):
+        """ Make a pair plot of the PCA results """
+        # Plot the pairwise relationships between the principal components colored by the labels
+        sns.pairplot(pca_results, hue='account_type')
+        plt.show()
+        plt.clf()
+        plt.close()
+
     def pcaDimensionalityReduction(self, dataset, components):
         """ Reduce the dimensionality of the dataset using PCA """
         # remove "account_type" column
-        dataset = dataset.drop(columns=["account_type"])
+        if "account_type" in dataset.columns.values:
+            dataset = dataset.drop(columns=["account_type"])
 
         pca = PCA(n_components=components)
         pca_components = pca.fit_transform(dataset)
         
         cols = [f'Dim_{i}' for i in range(components)]
         output = pd.DataFrame(data=pca_components, columns=cols)
+        output['account_type'] = self.train['account_type']
+
+        self.make_pair_plot(output)
+        
 
         # Plot the principal components
-        plt.scatter(output['Dim_0'].values, output['Dim_1'].values, alpha=0.25)
+        fig = plt.figure()
+        if components == 3:
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(output['Dim_0'].values, output['Dim_1'].values, output['Dim_2'].values, alpha=0.25, c=output['account_type'].values)
+        else:
+            ax = fig.add_subplot(111)
+            ax.scatter(output['Dim_0'].values, output['Dim_1'].values, alpha=0.25)
         plt.xlabel('PC_1')
         plt.ylabel('PC_2')
-        plt.title('Data after PCA Transformation')
-
-        
-        output_dir = os.path.join(self.save_dir, "PCA")
-        os.makedirs(output_dir, exist_ok=True)
-        plt.savefig(os.path.join(output_dir, "PCA.png"))
+        plt.title('Data after t-SNE Transformation')
+        plt.show()
+        plt.clf()
         plt.close()
 
         return output
 
+    def tsne_dimensionality_reduction(self, dataset, components):
+        """ Reduce the dimensionality of the dataset using t-SNE """
+        # remove "account_type" column
+        if "account_type" in dataset.columns.values:
+            dataset = dataset.drop(columns=["account_type"])
+
+        for perplexity in [80]:    
+            tsne = TSNE(n_components=components, perplexity=perplexity, n_iter=5000)
+            tsne_components = tsne.fit_transform(dataset)
+            
+            cols = [f'Dim_{i}' for i in range(components)]
+            output = pd.DataFrame(data=tsne_components, columns=cols)
+            output['account_type'] = self.train['account_type'] # add labels back in
+
+            self.make_pair_plot(output)
+
+            # Plot the principal components
+            fig = plt.figure()
+            if components == 3:
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(output['Dim_0'].values, output['Dim_1'].values, output['Dim_2'].values, alpha=0.25)
+            else:
+                ax = fig.add_subplot(111)
+                ax.scatter(output['Dim_0'].values, output['Dim_1'].values, alpha=0.25)
+            plt.xlabel('PC_1')
+            plt.ylabel('PC_2')
+            plt.title('Data after t-SNE Transformation')
+            plt.show()
+            plt.clf()
+            plt.close()
+
+        return output
 
     def visualize(self, clusters, dataset, name, eps=None):
         # Visualize the clusters
@@ -244,7 +298,7 @@ class Clustering():
         """ Make an elbow plot """
 
         inertias = []
-        for i in range(1, 10):
+        for i in range(1, 20):
             # Create a KMeans instance with k clusters: model
             model = KMeans(n_clusters=i)
 
@@ -265,10 +319,10 @@ class Clustering():
                 break
 
         # Plot ks vs inertias
-        plt.plot(range(1, 10), inertias, '-o')
+        plt.plot(range(1, 20), inertias, '-o')
         plt.xlabel('number of clusters, k')
         plt.ylabel('Inter-cluster variance')
-        plt.xticks(range(1, 10))
+        plt.xticks(range(1, 20))
 
         # Save
         kmeans_output = os.path.join(self.save_dir, "kmeans", "elbow.png")

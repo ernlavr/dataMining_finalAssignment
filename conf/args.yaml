@@ -2,9 +2,10 @@ bots_folder : "data/twt"
 humans_folder : "data/e13"
 data_train : "data/processed/train.csv"
 data_test : "data/processed/test.csv"
+data_parsed : "data/processed/data_parsed.csv"
 
 # Preprocessing
-preprocess : True
+preprocess : False
 
 # Clustering
 cluster : True
