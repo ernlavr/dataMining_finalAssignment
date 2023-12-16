@@ -21,7 +21,7 @@ class SentimentAnalysis:
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
         self.id2label = {0: "negative", 1: "neutral", 2: "positive"}
         self.label2id = {"negative": 0, "neutral": 1, "positive": 2}
-        self.batch_size = 2
+        self.batch_size = 32
     
         faux_tweets = [
             "I love you",
@@ -35,13 +35,16 @@ class SentimentAnalysis:
     def run_inference(self, tweets):
         dataloader = DataLoader(tweets, batch_size=self.batch_size)
         output = []
+        self.model.eval()
+        self.model.to(self.device)
 
         for batch in tqdm(dataloader):
             encoded_input = self.tokenizer(batch, return_tensors='pt', padding=True, truncation=True, max_length=512)
             inputs = {'input_ids': encoded_input['input_ids'].to(self.device),
                     'attention_mask': encoded_input['attention_mask'].to(self.device)}
+
             preds = self.model(**inputs)
-            scores = preds.logits.detach().numpy()
+            scores = preds.logits.detach().cpu().numpy()
             scores = softmax(scores)
             labels = np.argmax(scores, axis=1)
             
