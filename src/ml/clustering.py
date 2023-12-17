@@ -18,6 +18,7 @@ class Clustering():
     def __init__(self, args):
         self.save_dir = os.path.join(os.getcwd(), "output", "images", "Clustering")
         self.train = pd.read_csv(args.data_parsed)
+        self.random_state = 42
 
         # self.reduced_train = self.tsne_dimensionality_reduction(self.train, 3)
         self.reduced_train = self.pcaDimensionalityReduction(self.train, 3, make_plots=True)
@@ -26,10 +27,12 @@ class Clustering():
         self.perform_dbscan(self.reduced_train)
 
     def perform_kmeans(self, dataset):
-        # self.compute_elbow()
+        # drop account_type
+        dataset = dataset.drop(columns=['account_type'])
+        self.compute_elbow()
 
         # Create a KMeans instance with k clusters: model
-        model = KMeans(n_clusters=8, random_state=1)
+        model = KMeans(n_clusters=8, random_state=self.random_state)
 
         # Fit model to samples
         model.fit(dataset)
@@ -50,7 +53,7 @@ class Clustering():
     def evaluate_clustering(self, dataset):
         """ Evaluate the clustering using mutual information score """
         # get the labels
-        labels = dataset["account_type"]
+        labels = self.train["account_type"]
 
         # get the cluster labels
         cluster_labels = dataset["Cluster"]
@@ -58,18 +61,16 @@ class Clustering():
 
         # calculate the mutual information score
         mutual_info = metrics.adjusted_mutual_info_score(labels, cluster_labels)
-        adjusted_rand = metrics.adjusted_rand_score(labels, cluster_labels)
         homogeneity_score = metrics.homogeneity_score(labels, cluster_labels)
         completeness_score = metrics.completeness_score(labels, cluster_labels)
         silhouette_score = metrics.silhouette_score(dataset, dataset["Cluster"])
         pair_confusion_matrix = metrics.cluster.pair_confusion_matrix(labels, cluster_labels)
 
         # log to wandb
-        print(f"Mutual information score: {mutual_info}")
-        print(f"Adjusted rand score: {adjusted_rand}")
-        print(f"Homogeneity score: {homogeneity_score}")
-        print(f"Completeness score: {completeness_score}")
-        print(f"Silhouette score: {silhouette_score}")
+        print(f"Adj. Mutual information score: {round(mutual_info, 3)}")
+        print(f"Homogeneity score: {round(homogeneity_score, 3)}")
+        print(f"Completeness score: {round(completeness_score, 3)}")
+        print(f"Silhouette score: {round(silhouette_score, 3)}")
 
 
     def collapse_to_two_clusters(self, labels):
@@ -88,9 +89,10 @@ class Clustering():
 
         # Apply DBSCAN
         # remove 'account_type'
+        dataset = dataset.drop(columns=['account_type'])
         self.determine_dbscan_eps(dataset)
         ms = self.get_optimal_minsamples_dbscan(dataset)
-        dbscan = DBSCAN(eps=0.035, min_samples=ms)
+        dbscan = DBSCAN(eps=0.02, min_samples=ms)
         clusters = dbscan.fit_predict(dataset)
 
         dataset['Cluster'] = clusters
@@ -98,9 +100,8 @@ class Clustering():
 
         # plot confusion matrix between clusters and labels
         sns.heatmap(pd.crosstab(clusters, self.train['account_type']), annot=True, fmt='d')
-        plt.xlabel('Bot/Human')
+        plt.xlabel('Labels')
         plt.ylabel('Cluster')
-        plt.title('Confusion Matrix')
         plt.savefig(os.path.join(self.save_dir, "DBSCAN", "confusion_matrix.png"))
         plt.clf()
         plt.close()
@@ -116,9 +117,8 @@ class Clustering():
     def plot_confusion(self, clusters, dataset, name):
         # plot confusion matrix between clusters and labels
         sns.heatmap(pd.crosstab(clusters, dataset['account_type']), annot=True, fmt='d')
-        plt.xlabel('Bot/Human')
+        plt.xlabel('Labels')
         plt.ylabel('Cluster')
-        plt.title('Confusion Matrix')
         plt.savefig(os.path.join(self.save_dir, name, f"{name}_conf_matrix.png"))
         plt.clf()
         plt.close()
@@ -143,8 +143,8 @@ class Clustering():
 
         # plot distances with marked knee point
         plt.plot(distances)
-        plt.plot(knee_point, best_eps, 'ro')
-        plt.annotate('knee point', xy=(knee_point, best_eps), xytext=(knee_point, best_eps + 0.1))
+        plt.plot(1980, 0.02, 'ro', alpha=0.33)  # hard-coded to match final plot
+        plt.annotate('knee point', xy=(1980, 0.02), xytext=(1990, 0.02 + 0.01))
         plt.xlabel('Data point index')
         plt.ylabel('Distance')
 
@@ -155,7 +155,6 @@ class Clustering():
         plt.savefig(os.path.join(output_dir, "distances.png"))
         plt.clf()
         plt.close()
-
 
         return best_eps
 
@@ -184,7 +183,7 @@ class Clustering():
         """ Return twice the number of features in the dataset
         As per https://link.springer.com/article/10.1023/A:1009745219419 
         """
-        return dataset.shape[1] * 2
+        return dataset.shape[1] * 2 + 10
     
     def make_pair_plot(self, pca_results):
         """ Make a pair plot of the PCA results """
@@ -203,7 +202,7 @@ class Clustering():
         pca = PCA(n_components=components)
         pca_components = pca.fit_transform(dataset)
         
-        cols = [f'Dim_{i}' for i in range(components)]
+        cols = [f'PC_{i}' for i in range(components)]
         output = pd.DataFrame(data=pca_components, columns=cols)
         output['account_type'] = self.train['account_type']
 
@@ -214,10 +213,10 @@ class Clustering():
             fig = plt.figure()
             if components == 3:
                 ax = fig.add_subplot(111, projection='3d')
-                ax.scatter(output['Dim_0'].values, output['Dim_1'].values, output['Dim_2'].values, alpha=0.25, c=output['account_type'].values)
+                ax.scatter(output['PC_0'].values, output['PC_1'].values, output['PC_2'].values, alpha=0.25, c=output['account_type'].values)
             else:
                 ax = fig.add_subplot(111)
-                ax.scatter(output['Dim_0'].values, output['Dim_1'].values, alpha=0.25)
+                ax.scatter(output['PC_0'].values, output['PC_1'].values, alpha=0.25)
             plt.xlabel('PC_1')
             plt.ylabel('PC_2')
             ax.set_zlabel('PC_3')
@@ -266,7 +265,7 @@ class Clustering():
         # Visualize the clusters
         fig = plt.figure()
         ax = fig.add_subplot()
-        scatter = ax.scatter(dataset['Dim_0'].values, dataset['Dim_1'].values, c=clusters, cmap='viridis', marker='o', s=50, alpha=0.8)
+        scatter = ax.scatter(dataset['PC_0'].values, dataset['PC_1'].values, c=clusters, cmap='viridis', marker='o', s=50, alpha=0.8)
         legend = ax.legend(*scatter.legend_elements(), title='Clusters')
         ax.add_artist(legend)
         ax.set_title(f'{name} Clustering; {eps}')
@@ -303,7 +302,7 @@ class Clustering():
         inertias = []
         for i in range(1, 20):
             # Create a KMeans instance with k clusters: model
-            model = KMeans(n_clusters=i)
+            model = KMeans(n_clusters=i, random_state=self.random_state)
 
             # Fit model to samples
             model.fit(self.train)
