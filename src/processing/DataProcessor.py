@@ -23,8 +23,8 @@ numeric_columns = [
     "avg_retweets",
     "avg_favorites",
     "avg_length",
-    # "median_day_of_tweeting", # -1 if no tweets
-    # "median_time_of_tweeting", # -1 if no tweets
+    "median_day_of_tweeting",  # -1 if no tweets
+    "median_time_of_tweeting",  # -1 if no tweets
 ]
 
 
@@ -349,11 +349,21 @@ class DataProcessor:
                 avg_retweets,
                 avg_favorites,
                 avg_length,
-            )  # , median_day_of_week, median_time_of_day
+                median_day_of_week,
+                median_time_of_day,
+            )
 
-        users_df[["avg_retweets", "avg_favorites", "avg_length"]] = users_df[
-            "id"
-        ].apply(lambda x: pd.Series(parse_by_user_id(self, x, tweets_df)))
+        users_df[
+            [
+                "avg_retweets",
+                "avg_favorites",
+                "avg_length",
+                "median_day_of_tweeting",
+                "median_time_of_tweeting",
+            ]
+        ] = users_df["id"].apply(
+            lambda x: pd.Series(parse_by_user_id(self, x, tweets_df))
+        )
 
         # save df
         utils.save_tmp_data(users_df, "parse_tweets.csv")
