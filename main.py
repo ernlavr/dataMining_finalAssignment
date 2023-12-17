@@ -60,10 +60,10 @@ def get_args() -> argparse.Namespace:
 def main():
     args: argparse.Namespace = get_args()
     if args.preprocess:
-        dp.DataProcessor(args)
+        dp.DataProcessor(args)()
 
     if args.cluster:
-        cl.Clustering(args)
+        cl.Clustering(args)()
 
 
 if __name__ == "__main__":

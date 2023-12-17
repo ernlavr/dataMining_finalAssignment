@@ -33,9 +33,8 @@ class DataProcessor:
         self.user_file = "users.csv"
         self.tweet_file = "tweets.csv"
         self.args = args
-        self.run()
 
-    def run(self) -> None:
+    def __call__(self) -> None:
         # Set features
         df_human: pd.DataFrame = self._process_dataset(
             self.args.humans_folder, HUMAN_LABEL

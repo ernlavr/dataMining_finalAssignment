@@ -19,6 +19,7 @@ class Clustering():
         self.save_dir = os.path.join(os.getcwd(), "output", "images", "Clustering")
         self.train = pd.read_csv(args.data_train)
 
+    def __call__(self) -> None:
         # self.reduced_train = self.tsne_dimensionality_reduction(self.train, 3)
         self.reduced_train = self.pcaDimensionalityReduction(self.train, 3)
         
