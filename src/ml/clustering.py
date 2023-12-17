@@ -17,19 +17,19 @@ import sklearn.metrics as metrics
 class Clustering():
     def __init__(self, args):
         self.save_dir = os.path.join(os.getcwd(), "output", "images", "Clustering")
-        self.train = pd.read_csv(args.data_train)
+        self.train = pd.read_csv(args.data_parsed)
 
         # self.reduced_train = self.tsne_dimensionality_reduction(self.train, 3)
-        self.reduced_train = self.pcaDimensionalityReduction(self.train, 3)
+        self.reduced_train = self.pcaDimensionalityReduction(self.train, 3, make_plots=True)
         
-        self.perform_kmeans(self.reduced_train)
-        # self.perform_dbscan(self.reduced_train)
+        # self.perform_kmeans(self.reduced_train)
+        self.perform_dbscan(self.reduced_train)
 
     def perform_kmeans(self, dataset):
         # self.compute_elbow()
 
         # Create a KMeans instance with k clusters: model
-        model = KMeans(n_clusters=14, random_state=1)
+        model = KMeans(n_clusters=8, random_state=1)
 
         # Fit model to samples
         model.fit(dataset)
@@ -37,6 +37,9 @@ class Clustering():
         # Determine the cluster labels of new_points: labels
         labels = model.predict(dataset)
         self.train['Cluster'] = labels
+
+        dataset = self.pcaDimensionalityReduction(dataset, 2)
+        dataset['Cluster'] = labels
 
         # Add the cluster labels to your DataFrame
         self.visualize(labels, dataset, name="kmeans")
@@ -87,7 +90,7 @@ class Clustering():
         # remove 'account_type'
         self.determine_dbscan_eps(dataset)
         ms = self.get_optimal_minsamples_dbscan(dataset)
-        dbscan = DBSCAN(eps=0.5, min_samples=ms)
+        dbscan = DBSCAN(eps=0.04, min_samples=ms)
         clusters = dbscan.fit_predict(dataset)
 
         dataset['Cluster'] = clusters
@@ -98,7 +101,6 @@ class Clustering():
         plt.xlabel('Bot/Human')
         plt.ylabel('Cluster')
         plt.title('Confusion Matrix')
-        plt.show()
         plt.savefig(os.path.join(self.save_dir, "DBSCAN", "confusion_matrix.png"))
         plt.clf()
         plt.close()
@@ -117,7 +119,6 @@ class Clustering():
         plt.xlabel('Bot/Human')
         plt.ylabel('Cluster')
         plt.title('Confusion Matrix')
-        plt.show()
         plt.savefig(os.path.join(self.save_dir, name, f"{name}_conf_matrix.png"))
         plt.clf()
         plt.close()
@@ -192,8 +193,8 @@ class Clustering():
         plt.show()
         plt.clf()
         plt.close()
-
-    def pcaDimensionalityReduction(self, dataset, components):
+        
+    def pcaDimensionalityReduction(self, dataset, components, make_plots=False):
         """ Reduce the dimensionality of the dataset using PCA """
         # remove "account_type" column
         if "account_type" in dataset.columns.values:
@@ -206,23 +207,24 @@ class Clustering():
         output = pd.DataFrame(data=pca_components, columns=cols)
         output['account_type'] = self.train['account_type']
 
-        self.make_pair_plot(output)
-        
 
-        # Plot the principal components
-        fig = plt.figure()
-        if components == 3:
-            ax = fig.add_subplot(111, projection='3d')
-            ax.scatter(output['Dim_0'].values, output['Dim_1'].values, output['Dim_2'].values, alpha=0.25, c=output['account_type'].values)
-        else:
-            ax = fig.add_subplot(111)
-            ax.scatter(output['Dim_0'].values, output['Dim_1'].values, alpha=0.25)
-        plt.xlabel('PC_1')
-        plt.ylabel('PC_2')
-        plt.title('Data after t-SNE Transformation')
-        plt.show()
-        plt.clf()
-        plt.close()
+        if make_plots:
+            self.make_pair_plot(output)
+            # Plot the principal components
+            fig = plt.figure()
+            if components == 3:
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(output['Dim_0'].values, output['Dim_1'].values, output['Dim_2'].values, alpha=0.25, c=output['account_type'].values)
+            else:
+                ax = fig.add_subplot(111)
+                ax.scatter(output['Dim_0'].values, output['Dim_1'].values, alpha=0.25)
+            plt.xlabel('PC_1')
+            plt.ylabel('PC_2')
+            plt.title('Data after PCA Transformation')
+            plt.show()
+            # plt.savefig(os.path.join(self.save_dir, "dimensionality", "PCA.png"))
+            plt.clf()
+            plt.close()
 
         return output
 
@@ -266,14 +268,14 @@ class Clustering():
         scatter = ax.scatter(dataset['Dim_0'].values, dataset['Dim_1'].values, c=clusters, cmap='viridis', marker='o', s=50, alpha=0.8)
         legend = ax.legend(*scatter.legend_elements(), title='Clusters')
         ax.add_artist(legend)
-        ax.set_title(f'DBSCAN Clustering; {eps}')
+        ax.set_title(f'{name} Clustering; {eps}')
         ax.set_xlabel('PC_1')
         ax.set_ylabel('PC_2')
-        plt.show()
 
         # save to output/images/Clustering/DBSCAN.png
         output_dir = os.path.join(self.save_dir, name)
         os.makedirs(output_dir, exist_ok=True)
+        plt.show()
         plt.savefig(os.path.join(output_dir, f"{name}.png"))
         plt.clf()
         plt.close()
