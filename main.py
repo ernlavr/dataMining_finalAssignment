@@ -2,6 +2,7 @@ import argparse
 
 import omegaconf
 
+import src.utils.utilities as utils
 import src.processing.DataProcessor as dp
 import src.ml.clustering as cl
 import src.processing.DataProcessor as dp
@@ -62,9 +63,6 @@ def main():
     args: argparse.Namespace = get_args()
     if args.preprocess:
         dp.DataProcessor(args)()
-
-    # if args.dimred:
-    #     dimred = dr.DimRed(args)
 
     if args.cluster:
         cl.Clustering(args)()
