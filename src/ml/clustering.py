@@ -22,7 +22,7 @@ class Clustering():
         # self.reduced_train = self.tsne_dimensionality_reduction(self.train, 3)
         self.reduced_train = self.pcaDimensionalityReduction(self.train, 3, make_plots=True)
         
-        # self.perform_kmeans(self.reduced_train)
+        self.perform_kmeans(self.reduced_train)
         self.perform_dbscan(self.reduced_train)
 
     def perform_kmeans(self, dataset):
@@ -90,7 +90,7 @@ class Clustering():
         # remove 'account_type'
         self.determine_dbscan_eps(dataset)
         ms = self.get_optimal_minsamples_dbscan(dataset)
-        dbscan = DBSCAN(eps=0.04, min_samples=ms)
+        dbscan = DBSCAN(eps=0.035, min_samples=ms)
         clusters = dbscan.fit_predict(dataset)
 
         dataset['Cluster'] = clusters
@@ -190,7 +190,7 @@ class Clustering():
         """ Make a pair plot of the PCA results """
         # Plot the pairwise relationships between the principal components colored by the labels
         sns.pairplot(pca_results, hue='account_type')
-        plt.show()
+        plt.savefig(os.path.join(os.getcwd(), "output", "images", 'dimensionality', "pairplot.png"))
         plt.clf()
         plt.close()
         
@@ -220,6 +220,7 @@ class Clustering():
                 ax.scatter(output['Dim_0'].values, output['Dim_1'].values, alpha=0.25)
             plt.xlabel('PC_1')
             plt.ylabel('PC_2')
+            ax.set_zlabel('PC_3')
             plt.title('Data after PCA Transformation')
             plt.show()
             # plt.savefig(os.path.join(self.save_dir, "dimensionality", "PCA.png"))
