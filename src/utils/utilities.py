@@ -56,8 +56,8 @@ def get_numeric_columns() -> list:
         "avg_retweets",
         "avg_favorites",
         "avg_length",
-        # "median_day_of_tweeting", # -1 if no tweets
-        # "median_time_of_tweeting", # -1 if no tweets
+        "median_day_of_tweeting", # -1 if no tweets
+        "median_time_of_tweeting", # -1 if no tweets
     ]
     return numeric_columns
 

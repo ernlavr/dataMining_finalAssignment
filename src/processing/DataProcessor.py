@@ -310,11 +310,13 @@ class DataProcessor:
             median_time_of_day = tweets["created_time_of_day"].median()
             median_time_of_day = median_time_of_day if pd.notna(median_time_of_day) else -1
 
-            return avg_retweets, avg_favorites, avg_length #, median_day_of_week, median_time_of_day
+            return avg_retweets, avg_favorites, avg_length, median_day_of_week, median_time_of_day
 
         users_df[['avg_retweets', 
             'avg_favorites', 
-            'avg_length']] = users_df['id'].apply(lambda x: pd.Series(parse_by_user_id(self, x, tweets_df)))
+            'avg_length',
+            'median_day_of_tweeting',
+            'median_time_of_tweeting']] = users_df['id'].apply(lambda x: pd.Series(parse_by_user_id(self, x, tweets_df)))
 
         # save df
         utils.save_tmp_data(users_df, "parse_tweets.csv")
