@@ -28,6 +28,7 @@ numeric_columns = [
 ]
 
 
+
 class DataProcessor:
     def __init__(self, args: Namespace):
         self.user_file = "users.csv"
