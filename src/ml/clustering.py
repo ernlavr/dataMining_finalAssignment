@@ -22,170 +22,6 @@ class Clustering:
         self.perform_kmeans(self.reduced_train)
         self.perform_dbscan(self.reduced_train)
 
-    def perform_kmeans(self, dataset):
-        # drop account_type
-        dataset = dataset.drop(columns=["account_type"])
-        self.compute_elbow()
-
-        # Create a KMeans instance with k clusters: model
-        model = KMeans(n_clusters=8, random_state=self.random_state)
-
-        # Determine the cluster labels of new_points: labels
-        labels = model.fit_predict(dataset)
-        self.train["Cluster"] = labels
-
-        dataset["Cluster"] = labels
-
-        # Add the cluster labels to your DataFrame
-        self.visualize(labels, dataset, name="kmeans")
-        self.evaluate_clustering(self.train)
-        self.plot_confusion(labels, self.train, "kmeans")
-
-    def evaluate_clustering(self, dataset):
-        """Evaluate the clustering using mutual information score"""
-        # get the labels
-        labels = self.train["account_type"]
-
-        # get the cluster labels
-        cluster_labels = dataset["Cluster"]
-
-        # calculate the mutual information score
-        mutual_info = metrics.adjusted_mutual_info_score(labels, cluster_labels)
-        homogeneity_score = metrics.homogeneity_score(labels, cluster_labels)
-        completeness_score = metrics.completeness_score(labels, cluster_labels)
-        silhouette_score = metrics.silhouette_score(dataset, dataset["Cluster"])
-        pair_confusion_matrix = metrics.cluster.pair_confusion_matrix(
-            labels, cluster_labels
-        )  # TODO: pair_confusion_matrix unused variable
-
-        # log to wandb
-        print(f"Adj. Mutual information score: {round(mutual_info, 3)}")
-        print(f"Homogeneity score: {round(homogeneity_score, 3)}")
-        print(f"Completeness score: {round(completeness_score, 3)}")
-        print(f"Silhouette score: {round(silhouette_score, 3)}")
-
-    def collapse_to_two_clusters(self, labels):
-        num_clusters = len(set(labels))
-
-        middle = (num_clusters - 1) // 2
-        mapping = {label: 0 if label < middle else 1 for label in set(labels)}
-
-        collapsed_labels = [mapping[label] for label in labels]
-        return collapsed_labels
-
-    def perform_dbscan(self, dataset):
-        # Drop target to prevent cheating
-        dataset = dataset.drop(columns=["account_type"])
-
-        # Determine hyperparameters
-        self.determine_dbscan_eps(dataset)
-        ms = self.get_optimal_minsamples_dbscan(dataset)
-
-        # Cluster
-        dbscan = DBSCAN(eps=0.02, min_samples=ms)
-        clusters = dbscan.fit_predict(dataset)
-
-        # Visualize
-        dataset["Cluster"] = clusters
-        self.visualize(clusters, dataset, "DBSCAN")
-        sns.heatmap(
-            pd.crosstab(clusters, self.train["account_type"]), annot=True, fmt="d"
-        )
-        plt.xlabel("Labels")
-        plt.ylabel("Cluster")
-        plt.show()
-        plt.savefig(os.path.join(self.save_dir, "DBSCAN", "confusion_matrix.png"))
-        plt.clf()
-        plt.close()
-
-        # add clusters into self.train
-        self.train["Cluster"] = clusters
-        self.evaluate_clustering(self.train)
-
-        return dataset
-
-    def plot_confusion(self, clusters, dataset, name):
-        # plot confusion matrix between clusters and labels
-
-        sns.heatmap(pd.crosstab(clusters, dataset["account_type"]), annot=True, fmt="d")
-        plt.xlabel("Labels")
-        plt.ylabel("Cluster")
-        plt.title("Confusion Matrix")
-        plt.show()
-        plt.savefig(os.path.join(self.save_dir, name, f"{name}_conf_matrix.png"))
-        plt.clf()
-        plt.close()
-
-    def determine_dbscan_eps(self, dataset):
-        """Use K-Nearest Neighbors to determine the optimal eps value for DBSCAN
-        As per:
-        https://www.khoury.northeastern.edu/home/vip/teach/DMcourse/2_cluster_EM_mixt/notes_slides/revisitofrevisitDBSCAN.pdf
-        """
-        k_neighbours = self.get_optimal_minsamples_dbscan(dataset)  # same as minsamples
-        neighbors = NearestNeighbors(n_neighbors=k_neighbours)
-        neighbors_fit = neighbors.fit(dataset)
-        distances, _ = neighbors_fit.kneighbors(dataset)
-
-        distances = np.sort(distances, axis=0)
-        distances = distances[:, 1]
-
-        # retrieve the best eps
-        knee_point = self.find_knee_point(distances)
-        best_eps = distances[knee_point]
-
-        # plot distances with marked knee point
-        plt.plot(distances)
-        plt.plot(1980, 0.02, "ro", alpha=0.33)  # hard-coded to match final plot
-        plt.annotate("knee point", xy=(1980, 0.02), xytext=(1990, 0.02 + 0.01))
-        plt.xlabel("Data point index")
-        plt.ylabel("Distance")
-
-        # save
-        output_dir = os.path.join(self.save_dir, "DBSCAN")
-        os.makedirs(output_dir, exist_ok=True)
-        plt.show()
-        plt.savefig(os.path.join(output_dir, "distances.png"))
-        plt.clf()
-        plt.close()
-
-        return best_eps
-
-    def find_knee_point(self, distances):
-        """Find the knee point in the plot of sorted distances.
-        As per: https://raghavan.usc.edu//papers/kneedle-simplex11.pdf
-        TODO Confirm this algorithm with the paper!
-        """
-        n_points = len(distances)
-        x = np.arange(n_points)
-        y = distances
-
-        # Calculate the first derivative (slope)
-        dy = np.diff(y) / np.diff(x)
-
-        # Use the second derivative to find the knee point
-        ddy = np.diff(dy) / np.diff(x[:-1])  # TODO: ddy unused variable
-
-        # Find the index of the knee point
-        knee_point_index = np.argmax(dy)
-
-        return knee_point_index
-
-    def get_optimal_minsamples_dbscan(self, dataset):
-        """Return twice the number of features in the dataset"""
-        beta = 10  # empirical value
-        return dataset.shape[1] * 2 + beta
-
-    def make_pair_plot(self, pca_results):
-        """Make a pair plot of the PCA results"""
-        # Plot the pairwise relationships between the principal components colored by the labels
-        sns.pairplot(pca_results, hue="account_type")
-        sns.pairplot(pca_results, hue="account_type")
-        save_dir = os.path.join(os.getcwd(), "output", "images", "dimensionality")
-        os.makedirs(save_dir, exist_ok=True)
-        plt.savefig(os.path.join(save_dir, "pairplot.png"))
-        plt.clf()
-        plt.close()
-
     def pca_dimensionality_reduction(self, dataset, components):
         """Reduce the dimensionality of the dataset using PCA"""
         # remove "account_type" column
@@ -224,7 +60,171 @@ class Clustering:
 
         return output
 
-    def visualize(self, clusters, dataset, name, eps=None):
+    def perform_kmeans(self, dataset):
+        # drop account_type
+        dataset = dataset.drop(columns=["account_type"])
+        self._compute_elbow()
+
+        # Create a KMeans instance with k clusters: model
+        model = KMeans(n_clusters=8, random_state=self.random_state)
+
+        # Determine the cluster labels of new_points: labels
+        labels = model.fit_predict(dataset)
+        self.train["Cluster"] = labels
+
+        dataset["Cluster"] = labels
+
+        # Add the cluster labels to your DataFrame
+        self._visualize(labels, dataset, name="kmeans")
+        self._evaluate_clustering(self.train)
+        self._plot_confusion(labels, self.train, "kmeans")
+    
+    def perform_dbscan(self, dataset):
+        # Drop target to prevent cheating
+        dataset = dataset.drop(columns=["account_type"])
+
+        # Determine hyperparameters
+        self._determine_dbscan_eps(dataset)
+        ms = self._get_optimal_minsamples_dbscan(dataset)
+
+        # Cluster
+        dbscan = DBSCAN(eps=0.02, min_samples=ms)
+        clusters = dbscan.fit_predict(dataset)
+
+        # Visualize
+        dataset["Cluster"] = clusters
+        self._visualize(clusters, dataset, "DBSCAN")
+        sns.heatmap(
+            pd.crosstab(clusters, self.train["account_type"]), annot=True, fmt="d"
+        )
+        plt.xlabel("Labels")
+        plt.ylabel("Cluster")
+        plt.show()
+        plt.savefig(os.path.join(self.save_dir, "DBSCAN", "confusion_matrix.png"))
+        plt.clf()
+        plt.close()
+
+        # add clusters into self.train
+        self.train["Cluster"] = clusters
+        self._evaluate_clustering(self.train)
+
+        return dataset
+
+    def make_pair_plot(self, pca_results):
+        """Make a pair plot of the PCA results"""
+        # Plot the pairwise relationships between the principal components colored by the labels
+        sns.pairplot(pca_results, hue="account_type")
+        sns.pairplot(pca_results, hue="account_type")
+        save_dir = os.path.join(os.getcwd(), "output", "images", "dimensionality")
+        os.makedirs(save_dir, exist_ok=True)
+        plt.savefig(os.path.join(save_dir, "pairplot.png"))
+        plt.clf()
+        plt.close()
+
+    def _evaluate_clustering(self, dataset):
+        """Evaluate the clustering using mutual information score"""
+        # get the labels
+        labels = self.train["account_type"]
+
+        # get the cluster labels
+        cluster_labels = dataset["Cluster"]
+
+        # calculate the mutual information score
+        mutual_info = metrics.adjusted_mutual_info_score(labels, cluster_labels)
+        homogeneity_score = metrics.homogeneity_score(labels, cluster_labels)
+        completeness_score = metrics.completeness_score(labels, cluster_labels)
+        silhouette_score = metrics.silhouette_score(dataset, dataset["Cluster"])
+        pair_confusion_matrix = metrics.cluster.pair_confusion_matrix(
+            labels, cluster_labels
+        )  # TODO: pair_confusion_matrix unused variable
+
+        # log to wandb
+        print(f"Adj. Mutual information score: {round(mutual_info, 3)}")
+        print(f"Homogeneity score: {round(homogeneity_score, 3)}")
+        print(f"Completeness score: {round(completeness_score, 3)}")
+        print(f"Silhouette score: {round(silhouette_score, 3)}")
+
+    def _collapse_to_two_clusters(self, labels):
+        num_clusters = len(set(labels))
+
+        middle = (num_clusters - 1) // 2
+        mapping = {label: 0 if label < middle else 1 for label in set(labels)}
+
+        collapsed_labels = [mapping[label] for label in labels]
+        return collapsed_labels
+
+    def _plot_confusion(self, clusters, dataset, name):
+        # plot confusion matrix between clusters and labels
+
+        sns.heatmap(pd.crosstab(clusters, dataset["account_type"]), annot=True, fmt="d")
+        plt.xlabel("Labels")
+        plt.ylabel("Cluster")
+        plt.title("Confusion Matrix")
+        plt.show()
+        plt.savefig(os.path.join(self.save_dir, name, f"{name}_conf_matrix.png"))
+        plt.clf()
+        plt.close()
+
+    def _determine_dbscan_eps(self, dataset):
+        """Use K-Nearest Neighbors to determine the optimal eps value for DBSCAN
+        As per:
+        https://www.khoury.northeastern.edu/home/vip/teach/DMcourse/2_cluster_EM_mixt/notes_slides/revisitofrevisitDBSCAN.pdf
+        """
+        k_neighbours = self._get_optimal_minsamples_dbscan(dataset)  # same as minsamples
+        neighbors = NearestNeighbors(n_neighbors=k_neighbours)
+        neighbors_fit = neighbors.fit(dataset)
+        distances, _ = neighbors_fit.kneighbors(dataset)
+
+        distances = np.sort(distances, axis=0)
+        distances = distances[:, 1]
+
+        # retrieve the best eps
+        knee_point = self._find_knee_point(distances)
+        best_eps = distances[knee_point]
+
+        # plot distances with marked knee point
+        plt.plot(distances)
+        plt.plot(1980, 0.02, "ro", alpha=0.33)  # hard-coded to match final plot
+        plt.annotate("knee point", xy=(1980, 0.02), xytext=(1990, 0.02 + 0.01))
+        plt.xlabel("Data point index")
+        plt.ylabel("Distance")
+
+        # save
+        output_dir = os.path.join(self.save_dir, "DBSCAN")
+        os.makedirs(output_dir, exist_ok=True)
+        plt.show()
+        plt.savefig(os.path.join(output_dir, "distances.png"))
+        plt.clf()
+        plt.close()
+
+        return best_eps
+
+    def _find_knee_point(self, distances):
+        """Find the knee point in the plot of sorted distances.
+        As per: https://raghavan.usc.edu//papers/kneedle-simplex11.pdf
+        TODO Confirm this algorithm with the paper!
+        """
+        n_points = len(distances)
+        x = np.arange(n_points)
+        y = distances
+
+        # Calculate the first derivative (slope)
+        dy = np.diff(y) / np.diff(x)
+
+        # Use the second derivative to find the knee point
+        ddy = np.diff(dy) / np.diff(x[:-1])  # TODO: ddy unused variable
+
+        # Find the index of the knee point
+        knee_point_index = np.argmax(dy)
+
+        return knee_point_index
+
+    def _get_optimal_minsamples_dbscan(self, dataset):
+        """Return twice the number of features in the dataset"""
+        beta = 10  # empirical value
+        return dataset.shape[1] * 2 + beta
+
+    def _visualize(self, clusters, dataset, name, eps=None):
         # Visualize the clusters
         fig = plt.figure()
         ax = fig.add_subplot()
@@ -251,7 +251,7 @@ class Clustering:
         plt.clf()
         plt.close()
 
-    def compute_elbow(self):
+    def _compute_elbow(self):
         """Make an elbow plot"""
         inertias = []
         for i in range(1, 20):
