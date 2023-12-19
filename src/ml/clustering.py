@@ -18,7 +18,7 @@ class Clustering:
         self.random_state = 42
 
     def __call__(self) -> None:
-        self.reduced_train = self.pcaDimensionalityReduction(self.train, 3)
+        self.reduced_train = self.pca_dimensionality_reduction(self.train, 3)
         self.perform_kmeans(self.reduced_train)
         self.perform_dbscan(self.reduced_train)
 
@@ -189,7 +189,7 @@ class Clustering:
         plt.clf()
         plt.close()
 
-    def pcaDimensionalityReduction(self, dataset, components):
+    def pca_dimensionality_reduction(self, dataset, components):
         """Reduce the dimensionality of the dataset using PCA"""
         # remove "account_type" column
         if "account_type" in dataset.columns.values:
