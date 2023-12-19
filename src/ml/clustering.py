@@ -53,8 +53,9 @@ class Clustering:
         plt.ylabel("PC_2")
         ax.set_zlabel("PC_3")
         plt.title("Data after PCA Transformation")
+        save_dir = os.path.join(os.getcwd(), "output", "images", 'dimensionality')
+        fig.savefig(os.path.join(save_dir, "PCA.png"))
         plt.show()
-        # plt.savefig(os.path.join(self.save_dir, "dimensionality", "PCA.png"))
         plt.clf()
         plt.close()
 
@@ -97,10 +98,10 @@ class Clustering:
         sns.heatmap(
             pd.crosstab(clusters, self.train["account_type"]), annot=True, fmt="d"
         )
-        plt.xlabel("Labels")
+        plt.xlabel("Labels (0 = bot, 1 = human)")
         plt.ylabel("Cluster")
-        plt.show()
         plt.savefig(os.path.join(self.save_dir, "DBSCAN", "confusion_matrix.png"))
+        plt.show()
         plt.clf()
         plt.close()
 
@@ -157,11 +158,11 @@ class Clustering:
         # plot confusion matrix between clusters and labels
 
         sns.heatmap(pd.crosstab(clusters, dataset["account_type"]), annot=True, fmt="d")
-        plt.xlabel("Labels")
+        plt.xlabel("Labels (0 = bot, 1 = human)")
         plt.ylabel("Cluster")
         plt.title("Confusion Matrix")
-        plt.show()
         plt.savefig(os.path.join(self.save_dir, name, f"{name}_conf_matrix.png"))
+        plt.show()
         plt.clf()
         plt.close()
 
@@ -192,8 +193,8 @@ class Clustering:
         # save
         output_dir = os.path.join(self.save_dir, "DBSCAN")
         os.makedirs(output_dir, exist_ok=True)
-        plt.show()
         plt.savefig(os.path.join(output_dir, "distances.png"))
+        plt.show()
         plt.clf()
         plt.close()
 
@@ -224,6 +225,19 @@ class Clustering:
         beta = 10  # empirical value
         return dataset.shape[1] * 2 + beta
 
+
+    def make_pair_plot(self, pca_results):
+        """Make a pair plot of the PCA results"""
+        # Plot the pairwise relationships between the principal components colored by the labels
+        sns.pairplot(pca_results, hue='account_type')
+        sns.pairplot(pca_results, hue="account_type")
+        save_dir = os.path.join(os.getcwd(), "output", "images", 'dimensionality')
+        os.makedirs(save_dir, exist_ok=True)
+        plt.savefig(os.path.join(save_dir, "pairplot.png"))
+        plt.clf()
+        plt.close()
+
+
     def _visualize(self, clusters, dataset, name, eps=None):
         # Visualize the clusters
         fig = plt.figure()
@@ -246,8 +260,8 @@ class Clustering:
         # save to output/images/Clustering/DBSCAN.png
         output_dir = os.path.join(self.save_dir, name)
         os.makedirs(output_dir, exist_ok=True)
+        fig.savefig(os.path.join(output_dir, f"{name}.png"))
         plt.show()
-        plt.savefig(os.path.join(output_dir, f"{name}.png"))
         plt.clf()
         plt.close()
 
@@ -284,6 +298,7 @@ class Clustering:
         kmeans_output = os.path.join(self.save_dir, "kmeans", "elbow.png")
         os.makedirs(os.path.dirname(kmeans_output), exist_ok=True)
         plt.savefig(kmeans_output)
+        plt.show()
         plt.clf()
         plt.close()
 

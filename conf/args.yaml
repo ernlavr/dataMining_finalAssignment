@@ -5,7 +5,7 @@ data_test : "data/processed/test.csv"
 data_parsed : "data/processed/data_parsed.csv"
 
 # Preprocessing
-preprocess : False
+preprocess : True
 
 # Clustering
 cluster : True
