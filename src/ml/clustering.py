@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -55,30 +56,34 @@ class Clustering:
         plt.title("Data after PCA Transformation")
         save_dir = os.path.join(os.getcwd(), "output", "images", 'dimensionality')
         fig.savefig(os.path.join(save_dir, "PCA.png"))
-        plt.show()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")  # Ignore `FigureCanvasAgg` warnings for a cleaner output
+            plt.show()
         plt.clf()
         plt.close()
 
         return output
 
     def perform_kmeans(self, dataset):
-        # drop account_type
-        dataset = dataset.drop(columns=["account_type"])
-        self._compute_elbow()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")  # Ignore `n_init` warnings for a cleaner output
+            # drop account_type
+            dataset = dataset.drop(columns=["account_type"])
+            self._compute_elbow()
+            
+            # Create a KMeans instance with k clusters: model
+            model = KMeans(n_clusters=8, random_state=self.random_state)
 
-        # Create a KMeans instance with k clusters: model
-        model = KMeans(n_clusters=8, random_state=self.random_state)
+            # Determine the cluster labels of new_points: labels
+            labels = model.fit_predict(dataset)
+            self.train["Cluster"] = labels
 
-        # Determine the cluster labels of new_points: labels
-        labels = model.fit_predict(dataset)
-        self.train["Cluster"] = labels
+            dataset["Cluster"] = labels
 
-        dataset["Cluster"] = labels
-
-        # Add the cluster labels to your DataFrame
-        self._visualize(labels, dataset, name="kmeans")
-        self._evaluate_clustering(self.train)
-        self._plot_confusion(labels, self.train, "kmeans")
+            # Add the cluster labels to your DataFrame
+            self._visualize(labels, dataset, name="kmeans")
+            self._evaluate_clustering(self.train)
+            self._plot_confusion(labels, self.train, "kmeans")
     
     def perform_dbscan(self, dataset):
         # Drop target to prevent cheating
@@ -101,7 +106,9 @@ class Clustering:
         plt.xlabel("Labels (0 = bot, 1 = human)")
         plt.ylabel("Cluster")
         plt.savefig(os.path.join(self.save_dir, "DBSCAN", "confusion_matrix.png"))
-        plt.show()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")  # Ignore `FigureCanvasAgg` warnings for a cleaner output
+            plt.show()
         plt.clf()
         plt.close()
 
@@ -194,7 +201,9 @@ class Clustering:
         output_dir = os.path.join(self.save_dir, "DBSCAN")
         os.makedirs(output_dir, exist_ok=True)
         plt.savefig(os.path.join(output_dir, "distances.png"))
-        plt.show()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")  # Ignore `FigureCanvasAgg` warnings for a cleaner output
+            plt.show()
         plt.clf()
         plt.close()
 
@@ -261,7 +270,10 @@ class Clustering:
         output_dir = os.path.join(self.save_dir, name)
         os.makedirs(output_dir, exist_ok=True)
         fig.savefig(os.path.join(output_dir, f"{name}.png"))
-        plt.show()
+        
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")  # Ignore `FigureCanvasAgg` warnings for a cleaner output
+            plt.show()
         plt.clf()
         plt.close()
 
