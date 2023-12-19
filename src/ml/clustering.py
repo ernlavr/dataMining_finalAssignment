@@ -34,7 +34,7 @@ class Clustering:
         output = pd.DataFrame(data=pca_components, columns=cols)
         output["account_type"] = self.train["account_type"]
 
-        self.make_pair_plot(output)
+        self._make_pair_plot(output)
         # Plot the principal components
         fig = plt.figure()
         if components == 3:
@@ -110,7 +110,7 @@ class Clustering:
 
         return dataset
 
-    def make_pair_plot(self, pca_results):
+    def _make_pair_plot(self, pca_results):
         """Make a pair plot of the PCA results"""
         # Plot the pairwise relationships between the principal components colored by the labels
         sns.pairplot(pca_results, hue="account_type")

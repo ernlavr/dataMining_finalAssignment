@@ -52,26 +52,26 @@ class DataProcessor:
         self.df_merged = self._process_merged(self.df_merged)
 
         # Remove non-numeric columns and visualize
-        self.visualize(self.df_merged, "feature_correlation")
+        self._visualize(self.df_merged, "feature_correlation")
 
         # Remove outliers and apply min-max scaler
         # self.data_merged = self._remove_outliers_by_numerical_cols(numeric_df)
-        self.df_merged = self.apply_min_max_scaler(self.df_merged)
-        self.make_pair_plot()
+        self.df_merged = self._apply_min_max_scaler(self.df_merged)
+        self._make_pair_plot()
 
-        train, test = self.get_train_test()
+        train, test = self._get_train_test()
 
         # save data
         save_dir = os.path.join(os.getcwd(), "data", "processed")
         os.makedirs(save_dir, exist_ok=True)
         train.to_csv(os.path.join(save_dir, "train.csv"), index=False)
         test.to_csv(os.path.join(save_dir, "test.csv"), index=False)
-        self.check_duplicates(self.df_merged)
+        self._check_duplicates(self.df_merged)
         self.df_merged.to_csv(
             os.path.join(save_dir, "data_parsed.csv"), index=False
         )  # unsplit for debugging
 
-    def make_pair_plot(self):
+    def _make_pair_plot(self):
         """Make a pair plot"""
         # use only numeric columns
         output_dir = os.path.join(os.getcwd(), "output", "images", __class__.__name__)
@@ -84,11 +84,11 @@ class DataProcessor:
         plt.clf()
         plt.close()
 
-    def check_duplicates(self, df: pd.DataFrame):
+    def _check_duplicates(self, df: pd.DataFrame):
         """Check if there are any duplicates"""
         print(df.duplicated().sum())
 
-    def get_train_test(self):
+    def _get_train_test(self):
         """Balance the dataset by returning a train and test set
         Train test size should be 80% of the minority class and majority
         class should be downsampled. We're balancing according to "account_type" attribute
@@ -141,7 +141,7 @@ class DataProcessor:
 
         return train_set, test_set
 
-    def visualize(self, df: pd.DataFrame, filename) -> None:
+    def _visualize(self, df: pd.DataFrame, filename) -> None:
         # visualize the correlation
         corr: pd.DataFrame = df.corr()
         f, ax = plt.subplots(figsize=(14, 10))
@@ -174,7 +174,7 @@ class DataProcessor:
 
         return df
 
-    def apply_min_max_scaler(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _apply_min_max_scaler(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply min max scaler to all numeric columns"""
         scaler = MinMaxScaler()
         df[numeric_columns] = scaler.fit_transform(df[numeric_columns])
@@ -268,7 +268,7 @@ class DataProcessor:
         )
         df = pd.concat([df, df_encoded], axis=1)
 
-        df = self.parse_tweets(df, datapath)
+        df = self._parse_tweets(df, datapath)
 
         # save tmp data
         data_name = "human" if account_type is HUMAN_LABEL else "bot"
@@ -288,7 +288,7 @@ class DataProcessor:
 
         return df
 
-    def parse_tweets(self, users_df, datapath):
+    def _parse_tweets(self, users_df, datapath):
         """For both users.csv files, map the user IDs to the tweets.csv
         and extract useful information such as
 
@@ -329,10 +329,10 @@ class DataProcessor:
             tweets = self._convert_date_to_datetime64(tweets, save=False)
 
             # add time of day as 1 to 24 as a feature
-            tweets = self.add_time_of_day(tweets, save=False)
+            tweets = self._add_time_of_day(tweets, save=False)
 
             # add day of week as 1 to 7 as a feature
-            tweets = self.add_day_of_week(tweets, save=False)
+            tweets = self._add_day_of_week(tweets, save=False)
 
             # extract median day of tweeting
             median_day_of_week = tweets["created_day_of_week"].median()
@@ -370,7 +370,7 @@ class DataProcessor:
         utils.save_tmp_data(users_df, "parse_tweets.csv")
         return users_df
 
-    def discard_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _discard_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Discard columns that we will not use
         TODO: maybe discard "screen_name" and "id"?
         """
@@ -379,7 +379,7 @@ class DataProcessor:
         utils.save_tmp_data(df, "discard_columns.csv")
         return df
 
-    def replace_missing_values(self, df: pd.DataFrame, column, value) -> pd.DataFrame:
+    def _replace_missing_values(self, df: pd.DataFrame, column, value) -> pd.DataFrame:
         """Replace missing values with the mean of the column"""
         df[column] = df[column].fillna(value)
         utils.save_tmp_data(df, "replace_missing_values.csv")
@@ -398,7 +398,7 @@ class DataProcessor:
             utils.save_tmp_data(df, "convert_date_to_datetime64.csv")
         return df
 
-    def add_time_of_day(self, df: pd.DataFrame, save=True) -> pd.DataFrame:
+    def _add_time_of_day(self, df: pd.DataFrame, save=True) -> pd.DataFrame:
         """Add time of day as 1 to 24 as a feature"""
         df = df.assign(created_time_of_day=lambda x: x["created_at"].dt.hour)
 
@@ -406,7 +406,7 @@ class DataProcessor:
             utils.save_tmp_data(df, "add_time_of_day.csv")
         return df
 
-    def add_day_of_week(self, df: pd.DataFrame, save=True) -> pd.DataFrame:
+    def _add_day_of_week(self, df: pd.DataFrame, save=True) -> pd.DataFrame:
         """Add day of week as 1 to 7 as a feature"""
         df = df.assign(created_day_of_week=lambda x: x["created_at"].dt.dayofweek + 1)
 
@@ -414,7 +414,7 @@ class DataProcessor:
             utils.save_tmp_data(df, "add_day_of_week.csv")
         return df
 
-    def convert_account_type_to_int(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _convert_account_type_to_int(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convert account type to int"""
         df = df.assign(
             account_type_int=lambda x: x["account_type"].map({"human": 0, "bot": 1})
