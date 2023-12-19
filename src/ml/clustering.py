@@ -56,7 +56,7 @@ class Clustering:
         silhouette_score = metrics.silhouette_score(dataset, dataset["Cluster"])
         pair_confusion_matrix = metrics.cluster.pair_confusion_matrix(
             labels, cluster_labels
-        )
+        )  # TODO: pair_confusion_matrix unused variable
 
         # log to wandb
         print(f"Adj. Mutual information score: {round(mutual_info, 3)}")
@@ -163,7 +163,7 @@ class Clustering:
         dy = np.diff(y) / np.diff(x)
 
         # Use the second derivative to find the knee point
-        ddy = np.diff(dy) / np.diff(x[:-1])
+        ddy = np.diff(dy) / np.diff(x[:-1])  # TODO: ddy unused variable
 
         # Find the index of the knee point
         knee_point_index = np.argmax(dy)
