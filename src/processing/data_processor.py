@@ -266,6 +266,7 @@ class DataProcessor:
         df_encoded = pd.get_dummies(
             df["description"], prefix="description_contains_link"
         )
+        df = df.drop(columns=["description"])
         df = pd.concat([df, df_encoded], axis=1)
 
         df = self._parse_tweets(df, datapath)
