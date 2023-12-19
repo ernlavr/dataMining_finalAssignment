@@ -2,10 +2,8 @@ import argparse
 
 import omegaconf
 
-import src.utils.utilities as utils
-import src.processing.DataProcessor as dp
 import src.ml.clustering as cl
-import src.processing.DataProcessor as dp
+import src.processing.data_processor as dp
 
 
 def get_args() -> argparse.Namespace:
@@ -39,12 +37,10 @@ def get_args() -> argparse.Namespace:
     )
 
     # Preprocessing
-    parser.add_argument(
-        "--preprocess", type=bool, default=False, help="Preprocess data"
-    )
+    parser.add_argument("--preprocess", action="store_true", help="Preprocess data")
 
     # Clustering
-    parser.add_argument("--cluster", type=bool, default=False, help="Cluster data")
+    parser.add_argument("--cluster", action="store_true", help="Cluster data")
 
     # check if we have a config file
     args = parser.parse_args()

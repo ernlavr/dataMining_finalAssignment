@@ -16,25 +16,6 @@ def save_tmp_data(data: pd.DataFrame, name: str):
 
     data.to_csv(os.path.join(output_dir, name), index=False)
 
-<<<<<<< HEAD
-=======
-def get_numeric_columns() -> list:
-    """ Get the numeric columns of the dataset """
-    numeric_columns = [
-        "statuses_count",
-        "followers_count",
-        "friends_count",
-        "favourites_count",
-        "listed_count",
-        "description_num_char",
-        "avg_retweets",
-        "avg_favorites",
-        "avg_length",
-        "median_day_of_tweeting", # -1 if no tweets
-        "median_time_of_tweeting", # -1 if no tweets
-    ]
-    return numeric_columns
->>>>>>> 8167b8e (Re-add time of tweet)
 
 def get_categorical_columns() -> list:
     cat_columns = [

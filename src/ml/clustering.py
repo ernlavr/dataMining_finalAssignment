@@ -7,7 +7,6 @@ import seaborn as sns
 import sklearn.metrics as metrics
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 from sklearn.neighbors import NearestNeighbors
 
 
@@ -16,15 +15,16 @@ class Clustering:
         self.save_dir = os.path.join(os.getcwd(), "output", "images", "Clustering")
         self.train = pd.read_csv(args.data_parsed)
         self.random_state = 42
+        self.reduced_train: pd.DataFrame
 
     def __call__(self) -> None:
-        self.reduced_train = self.pcaDimensionalityReduction(self.train, 3)
+        self.reduced_train = self.pca_dimensionality_reduction(self.train, 3)
         self.perform_kmeans(self.reduced_train)
         self.perform_dbscan(self.reduced_train)
 
     def perform_kmeans(self, dataset):
         # drop account_type
-        dataset = dataset.drop(columns=['account_type'])
+        dataset = dataset.drop(columns=["account_type"])
         self.compute_elbow()
 
         # Create a KMeans instance with k clusters: model
@@ -34,7 +34,7 @@ class Clustering:
         labels = model.fit_predict(dataset)
         self.train["Cluster"] = labels
 
-        dataset['Cluster'] = labels
+        dataset["Cluster"] = labels
 
         # Add the cluster labels to your DataFrame
         self.visualize(labels, dataset, name="kmeans")
@@ -75,7 +75,7 @@ class Clustering:
 
     def perform_dbscan(self, dataset):
         # Drop target to prevent cheating
-        dataset = dataset.drop(columns=['account_type'])
+        dataset = dataset.drop(columns=["account_type"])
 
         # Determine hyperparameters
         self.determine_dbscan_eps(dataset)
@@ -124,7 +124,7 @@ class Clustering:
         k_neighbours = self.get_optimal_minsamples_dbscan(dataset)  # same as minsamples
         neighbors = NearestNeighbors(n_neighbors=k_neighbours)
         neighbors_fit = neighbors.fit(dataset)
-        distances, indices = neighbors_fit.kneighbors(dataset)
+        distances, _ = neighbors_fit.kneighbors(dataset)
 
         distances = np.sort(distances, axis=0)
         distances = distances[:, 1]
@@ -135,12 +135,10 @@ class Clustering:
 
         # plot distances with marked knee point
         plt.plot(distances)
-        plt.plot(1980, 0.02, 'ro', alpha=0.33)  # hard-coded to match final plot
-        plt.annotate(
-            "knee point", xy=(1980, 0.02), xytext=(1990, 0.02 + 0.01)
-        )
-        plt.xlabel('Data point index')
-        plt.ylabel('Distance')
+        plt.plot(1980, 0.02, "ro", alpha=0.33)  # hard-coded to match final plot
+        plt.annotate("knee point", xy=(1980, 0.02), xytext=(1990, 0.02 + 0.01))
+        plt.xlabel("Data point index")
+        plt.ylabel("Distance")
 
         # save
         output_dir = os.path.join(self.save_dir, "DBSCAN")
@@ -173,31 +171,30 @@ class Clustering:
         return knee_point_index
 
     def get_optimal_minsamples_dbscan(self, dataset):
-        """Return twice the number of features in the dataset """
-        beta = 10 # empirical value
+        """Return twice the number of features in the dataset"""
+        beta = 10  # empirical value
         return dataset.shape[1] * 2 + beta
-
 
     def make_pair_plot(self, pca_results):
         """Make a pair plot of the PCA results"""
         # Plot the pairwise relationships between the principal components colored by the labels
-        sns.pairplot(pca_results, hue='account_type')
         sns.pairplot(pca_results, hue="account_type")
-        save_dir = os.path.join(os.getcwd(), "output", "images", 'dimensionality')
+        sns.pairplot(pca_results, hue="account_type")
+        save_dir = os.path.join(os.getcwd(), "output", "images", "dimensionality")
         os.makedirs(save_dir, exist_ok=True)
         plt.savefig(os.path.join(save_dir, "pairplot.png"))
         plt.clf()
         plt.close()
 
-    def pcaDimensionalityReduction(self, dataset, components):
+    def pca_dimensionality_reduction(self, dataset, components):
         """Reduce the dimensionality of the dataset using PCA"""
         # remove "account_type" column
         if "account_type" in dataset.columns.values:
             dataset = dataset.drop(columns=["account_type"])
 
         pca = PCA(n_components=components)
-        pca_components = pca.fit_transform(dataset)       
-        cols = [f'PC_{i}' for i in range(components)]
+        pca_components = pca.fit_transform(dataset)
+        cols = [f"PC_{i}" for i in range(components)]
         output = pd.DataFrame(data=pca_components, columns=cols)
         output["account_type"] = self.train["account_type"]
 
@@ -205,22 +202,27 @@ class Clustering:
         # Plot the principal components
         fig = plt.figure()
         if components == 3:
-            ax = fig.add_subplot(111, projection='3d')
-            ax.scatter(output['PC_0'].values, output['PC_1'].values, output['PC_2'].values, alpha=0.25, c=output['account_type'].values)
+            ax = fig.add_subplot(111, projection="3d")
+            ax.scatter(
+                output["PC_0"].values,
+                output["PC_1"].values,
+                output["PC_2"].values,
+                alpha=0.25,
+                c=output["account_type"].values,
+            )
         else:
             ax = fig.add_subplot(111)
-            ax.scatter(output['PC_0'].values, output['PC_1'].values, alpha=0.25)
-        plt.xlabel('PC_1')
-        plt.ylabel('PC_2')
-        ax.set_zlabel('PC_3')
-        plt.title('Data after PCA Transformation')
+            ax.scatter(output["PC_0"].values, output["PC_1"].values, alpha=0.25)
+        plt.xlabel("PC_1")
+        plt.ylabel("PC_2")
+        ax.set_zlabel("PC_3")
+        plt.title("Data after PCA Transformation")
         plt.show()
         # plt.savefig(os.path.join(self.save_dir, "dimensionality", "PCA.png"))
         plt.clf()
         plt.close()
 
         return output
-
 
     def visualize(self, clusters, dataset, name, eps=None):
         # Visualize the clusters
@@ -235,11 +237,11 @@ class Clustering:
             s=50,
             alpha=0.8,
         )
-        legend = ax.legend(*scatter.legend_elements(), title='Clusters')
+        legend = ax.legend(*scatter.legend_elements(), title="Clusters")
         ax.add_artist(legend)
-        ax.set_title(f'{name} Clustering; {eps}')
-        ax.set_xlabel('PC_1')
-        ax.set_ylabel('PC_2')
+        ax.set_title(f"{name} Clustering; {eps}")
+        ax.set_xlabel("PC_1")
+        ax.set_ylabel("PC_2")
 
         # save to output/images/Clustering/DBSCAN.png
         output_dir = os.path.join(self.save_dir, name)

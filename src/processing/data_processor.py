@@ -4,8 +4,8 @@ from argparse import Namespace
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import scipy.stats as stats
 import seaborn as sns
+from scipy import stats
 from sklearn.preprocessing import MinMaxScaler
 
 import src.utils.utilities as utils
@@ -28,12 +28,12 @@ numeric_columns = [
 ]
 
 
-
 class DataProcessor:
     def __init__(self, args: Namespace):
         self.user_file = "users.csv"
         self.tweet_file = "tweets.csv"
         self.args = args
+        self.df_merged: pd.DataFrame
 
     def __call__(self) -> None:
         # Set features
@@ -48,7 +48,7 @@ class DataProcessor:
         # Assert identical lengths and merge
         assert df_human.columns.equals(df_bot.columns)
 
-        self.df_merged: pd.DataFrame = pd.concat([df_human, df_bot])
+        self.df_merged = pd.concat([df_human, df_bot])
         self.df_merged = self._process_merged(self.df_merged)
 
         # Remove non-numeric columns and visualize
@@ -345,7 +345,6 @@ class DataProcessor:
             median_time_of_day = (
                 median_time_of_day if pd.notna(median_time_of_day) else -1
             )
-
 
             return (
                 avg_retweets,
