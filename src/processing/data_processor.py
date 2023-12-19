@@ -308,10 +308,7 @@ class DataProcessor:
         tweets_df = utils.get_data(tweets_path)
 
         def parse_by_user_id(self, user_id, tweets_df):
-            """Extract all tweets by user_id
-            # TODO: outline in the report that means are sensetive to outliers
-            e.g. user ID 16119337
-            """
+            """Extract all tweets by user_id """
             tweets = tweets_df[tweets_df["user_id"] == user_id]
 
             # average number of retwets, if null, return 0
@@ -373,7 +370,6 @@ class DataProcessor:
 
     def _discard_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Discard columns that we will not use
-        TODO: maybe discard "screen_name" and "id"?
         """
         columns = ["_idx", "id", "profile_background_image_url", "profile_image_url"]
         df = df.drop(columns=columns)

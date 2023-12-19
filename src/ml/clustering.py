@@ -142,9 +142,6 @@ class Clustering:
         homogeneity_score = metrics.homogeneity_score(labels, cluster_labels)
         completeness_score = metrics.completeness_score(labels, cluster_labels)
         silhouette_score = metrics.silhouette_score(dataset, dataset["Cluster"])
-        pair_confusion_matrix = metrics.cluster.pair_confusion_matrix(
-            labels, cluster_labels
-        )  # TODO: pair_confusion_matrix unused variable
 
         # log to wandb
         print(f"Adj. Mutual information score: {round(mutual_info, 3)}")
@@ -212,7 +209,6 @@ class Clustering:
     def _find_knee_point(self, distances):
         """Find the knee point in the plot of sorted distances.
         As per: https://raghavan.usc.edu//papers/kneedle-simplex11.pdf
-        TODO Confirm this algorithm with the paper!
         """
         n_points = len(distances)
         x = np.arange(n_points)
@@ -220,9 +216,6 @@ class Clustering:
 
         # Calculate the first derivative (slope)
         dy = np.diff(y) / np.diff(x)
-
-        # Use the second derivative to find the knee point
-        ddy = np.diff(dy) / np.diff(x[:-1])  # TODO: ddy unused variable
 
         # Find the index of the knee point
         knee_point_index = np.argmax(dy)
